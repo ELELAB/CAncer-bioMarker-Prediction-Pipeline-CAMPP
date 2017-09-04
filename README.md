@@ -1,4 +1,5 @@
 # The-CAncer-bioMarker-Prediction-Pipeline-CAMPP-
+# Created by Thilde Bagger Terkelsen, 04-09-2017, thilde@cancer.dk, thildebate@gmail.com"
 
 This GitHub repository was created for the The CAncer bioMarker Prediction Pipeline (CAMPP). 
 A collection of R scripts made for computational prediction of serum cancer biomarkers. 
