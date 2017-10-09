@@ -5,17 +5,16 @@
 This GitHub repository was created for the The CAncer bioMarker Prediction Pipeline (CAMPP). 
 A collection of R scripts made for computational prediction of serum cancer biomarkers. 
 The pipeline was created by Thilde Bagger Terkelsen for internal use at the Danish Cancer Society Research Center. 
-The pipeline consists of three R scrips which are currently run from the linux commandline using flags. The scrips are named:
+The pipeline consists of three R scrips which are currently run from the linux command-line using flags. The scrips are named:
                                   
-                                  PipelineInstall.R
-                                  PipelineFunctions.R
-                                  Pipeline.R
+                                  CAMPPInstall.R
+                                  CAMPPFunctions.R
+                                  CAMPP.R
                                   
-The PipelineInstall.R script is run the first time the pipeline is used to ensure that all needed R-packages are install. 
-This part may require the user to open R and manually pick a crane-mirror. The user guide explains this in detail.
+The CAMPPInstall.R script is run the first time the pipeline is used to ensure that all needed R-packages are installed. 
+This part may require the user to open R and manually pick a CRAN-mirror. The user guide explains this in detail.
 
-The PipelineFunctions.R script contains custum functions used for analysis and is sourced directly from the Pipeline.R, 
-- this script does not need to be run.
+The CAMPPFunctions.R script contains custum functions used for analysis and is sourced within the CAMPP.R. The CAMPPFunctions.R script should be located in the folder from which the pipeline is run.
 
-The Pipeline.R script acts as the actual pipeline and is run with user flags from the linux commandline. 
-The flag -h is implemented for help.
+The CAMPP.R script acts as the actual pipeline and is run with flags from the linux command-line. 
+The flag -h is implemented for user help.
