@@ -889,7 +889,7 @@ if (arg.survival == TRUE){
 
 
    # Setting up data and writing out excel sheet with results and making HR stemplot
-   survival.data <- my_survival(survival.results, arg.survplot)
+   survival.data <- my_survival(survival.results, arg.filename, arg.survplot)
    xlsx::write.xlsx(survival.data, file=paste0(arg.filename,"_survival.xlsx"), row.names=TRUE)
    
 
