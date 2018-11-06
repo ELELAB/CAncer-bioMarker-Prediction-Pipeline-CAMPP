@@ -65,7 +65,7 @@ myMDSplot <- function(my.data, my.group, my.labels, my.cols) {
     fit <- cmdscale(d,eig=TRUE, k=2)
     res<-data.frame(names=rownames(fit$points),M1=fit$points[,1],M2=fit$points[,2])
     p <- ggplot(data=res)
-    p + geom_point(aes(x=M1,y=M2,color=my.group)) + geom_text(aes(x=M1,y=M2, label= my.labels, color=my.group)) + scale_color_manual(values  = my.cols) +
+    p + geom_point(aes(x=M1,y=M2,color=my.group), stroke = 0, shape = 16, size = 3) + geom_text(aes(x=M1,y=M2, label= my.labels, color=my.group)) + scale_color_manual(values  = my.cols) +
     coord_cartesian(xlim=c(min(res$M1)*1.4,max(res$M1)*1.4)) + theme_bw() + theme(legend.title=element_blank()) + theme(legend.text = element_text(size = 16, face="bold"), axis.title=element_text(size=16,face="bold")) + guides(colour = guide_legend(override.aes = list(size=6))) + theme(legend.position = "top") + theme(axis.text=element_text(size=16, face="bold")) + theme(axis.text = element_text(colour = "black"))
 }
 
