@@ -61,15 +61,13 @@ my.violin <- function(my.data, my.name, my.group, my.cols) {
 
 
 myMDSplot <- function(my.data, my.group, my.labels, my.cols) {
-  d<-dist(t(my.data))
-  fit <- cmdscale(d,eig=TRUE, k=2)
-  res<-data.frame(names=rownames(fit$points),M1=fit$points[,1],M2=fit$points[,2])
-  p <- ggplot(data=res) 
-  p + geom_point(aes(x=M1,y=M2,color=my.group)) + geom_text(aes(x=M1,y=M2, label= my.labels, color=my.group)) + scale_color_manual(values  = my.cols) +
+    d<-dist(t(my.data))
+    fit <- cmdscale(d,eig=TRUE, k=2)
+    res<-data.frame(names=rownames(fit$points),M1=fit$points[,1],M2=fit$points[,2])
+    p <- ggplot(data=res)
+    p + geom_point(aes(x=M1,y=M2,color=my.group)) + geom_text(aes(x=M1,y=M2, label= my.labels, color=my.group)) + scale_color_manual(values  = my.cols) +
     coord_cartesian(xlim=c(min(res$M1)*1.4,max(res$M1)*1.4)) + theme_bw() + theme(legend.title=element_blank()) + theme(legend.text = element_text(size = 16, face="bold"), axis.title=element_text(size=16,face="bold")) + guides(colour = guide_legend(override.aes = list(size=6))) + theme(legend.position = "top") + theme(axis.text=element_text(size=16, face="bold")) + theme(axis.text = element_text(colour = "black"))
 }
-
-
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION TO OBTAIN DIFFERENTIALLY ABUNDANT FEATURES:
@@ -131,6 +129,9 @@ DA_feature_apply <- function(my.contrasts, my.data, my.design, coLFC, coFDR, my.
     return(my.features.l)
   }
 }
+
+
+
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -246,9 +247,16 @@ my_heatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
 	# my.survres = A survival object in the form of a list with a cox regression for each feature.
         # my.filename = name of output plot	
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 
-my_survival <- function(my.survres, my.filename) {
+my_survival <- function(my.survres, my.n) {
   survival_conf  <- lapply(my.survres, function(x) summary(x)[2, c(4,6,7)])
   survival_conf  <- data.frame(do.call(rbind, survival_conf))
   colnames(survival_conf) <- c("HR", "lower", "upper")
@@ -258,10 +266,30 @@ my_survival <- function(my.survres, my.filename) {
   survival_conf$feature <- as.factor(names(my.survres))
   survival_conf$sig <- as.factor(ifelse(survival_conf$fdr <=0.05, 1, 0))
   survival_conf$InverseFDR <- 1/survival_conf$fdr
-  survival.plot <- ggplot(survival_conf, aes(x=feature, y=HR)) + geom_point(aes(colour = sig, size = InverseFDR)) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + scale_x_discrete(limits=as.character(names(survival.results))) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x)))
-  ggsave(paste0(my.filename, "_survivalplot.pdf"), plot = survival.plot)
+  
+  n.splits <- floor(nrow(survival_conf)/my.n)
+  n.splits <- chunk2(1:nrow(survival_conf),n.splits)
+  features <- lapply(n.splits, function(x) survival_conf[x,])
+  
+  p1 <- lapply(features, function(x) ggplot(x, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR), stroke = 0, shape=16) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x))))
+  for (i in 1:length(p1)) {
+  pdf(paste0(as.character(names(p1)[i]),"_individual_corrplots.pdf"), height=6, width=12)
+  print(p1[i])
+  dev.off()
+  }
   return(survival_conf)
 }
+
+
+
+
+
+
+#
+#  survival.plot <- ggplot(survival_conf, aes(x=feature, y=HR)) + geom_point(aes(colour = sig, size = InverseFDR)) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + scale_x_discrete(limits=as.character(names(survival.results))) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x)))
+#  ggsave(paste0(my.filename, "_survivalplot.pdf"), plot = survival.plot)
+#  return(survival_conf)
+#}
 
 
 
@@ -334,10 +362,10 @@ my_correlation_plots <- function(my.data, my.serumdata, my.features, my.filename
   my.serumdata <- my.serumdata[rownames(my.serumdata) %in% my.features,]
   features <- lapply(1:nrow(my.data), function(x) data.frame(as.numeric(my.data[x,]), as.numeric(my.serumdata[x,])))
   features <- lapply(features, setNames, c("TIF_Tissue", "Serum"))
-  p1 <- lapply(features, function(x) ggplot(x, aes(TIF_Tissue, Serum)) + geom_point(shape=1, size=2.5) + theme_bw() + geom_smooth(method=lm) + ggtitle("") +  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_blank()) + theme(axis.text.x = element_text(size=12), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16)))
+  p1 <- lapply(features, function(x) ggplot(x, aes(TIF_Tissue, Serum)) + geom_point(shape=1, size=2.5) + theme_bw() + geom_smooth(method=lm) +  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_blank()) + theme(axis.text.x = element_text(size=12), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16)))
   names(p1) <- my.features
   for (i in 1:length(p1)) {
-    p1[[i]] <- p1[[i]] + ggtitle(names(p1)[i])
+      p1[[i]] <- p1[[i]] + ggtitle(names(p1)[i])
   }
   nc <- ceiling(length(features)/2)
   pdf(paste0(my.filename,"_individual_corrplots.pdf"), height=6, width=12)

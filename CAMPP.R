@@ -30,7 +30,8 @@ spec = matrix(c(
   "data", "d", 1, "character",
   "metadata", "m", 1, "character",
   "serumdata", "s", 2, "character",
-  "survivaldata", "u", 2, "character",
+  "survival", "u", 2, "logical",
+  "survplot", "q", 2, "numeric",
   "transform", "t", 2, "character",
   "databatch", "b", 2, "logical",
   "serumbatch", "e", 2, "logical",
@@ -53,7 +54,7 @@ opt = getopt(spec)
 
 # Help
 if(!is.null(opt$help)) {
-    cat("\nFlags:\n-d --data: excelsheet with normalized counts, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n-m --metadata: excelsheet with metadata, minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n-s --serumdata: excelsheet of normalized counts from serum with the same order and as the count matrix (option -d).\n-u --survivaldata: excelsheet with survival info, must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death).\n-t --transform: should data be transformed? Current options are 'log2', 'log10' 'logit' or 'voom'. If argument is left out, no transformation of data will occur.\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n-n --filename: Name of result files from analysis.\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n-r --FDR: Alpha level for significance.\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n-l --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
+    cat("\nFlags:\n-d --data: excelsheet with normalized counts, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n-m --metadata: excelsheet with metadata, minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n-s --serumdata: excelsheet of normalized counts from serum with the same order and as the count matrix (option -d).\n-u --survival: survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requireds splitting of the plot, default features per plot is 50.\n-t --transform: should data be transformed? Current options are 'log2', 'log10' 'logit' or 'voom'. If argument is left out, no transformation of data will occur.\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n-n --filename: Name of result files from analysis.\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n-r --FDR: Alpha level for significance.\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n-l --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
     
         stop("Argument -h (help) selected, exiting script.")
 }
@@ -84,7 +85,7 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "sva", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "RColorBrewer", "squash", "survcomp", "survminer", "scales", "rms")
+list.of.packages <- c("limma", "sva", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "RColorBrewer", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow")
 
 lapply(list.of.packages, library, character.only=T)
 
@@ -141,14 +142,6 @@ if (is.null(opt$serumdata)){
     rownames(arg.serumdata) <- serumdata.names
 }
 
-
-# Survivaldata
-if (is.null(opt$survivaldata)){
-    arg.survivaldata <- NULL
-} else {
-    arg.survivaldata <- opt$survivaldata
-    arg.survivaldata <- openxlsx::read.xlsx(arg.survivaldata, colNames = TRUE, rowNames = FALSE)
-}
 
 
 
@@ -245,6 +238,9 @@ if (is.null(opt$FDR)){
 # Colors
 if (is.null(opt$colors)){
     arg.colors <- as.vector(brewer.pal(length(levels(as.factor(as.character(arg.metadata$group)))),"Dark2"))
+    if (length(levels(as.factor(as.character(arg.metadata$group)))) < 3) {
+        arg.colors <- arg.colors[1:2]
+    }
 } else {
     arg.colors <- as.list(strsplit(opt$colors, ",")[[1]])
 }
@@ -269,10 +265,20 @@ if (is.null(opt$DElist)){
 
 # Heatmap
 if (is.null(opt$plotheatmap)){
-    arg.plotheatmap <- TRUE
+    arg.plotheatmap <- FALSE
 } else {
     arg.plotheatmap <- opt$plotheatmap
 }
+
+
+
+# Survival Analysis
+if (is.null(opt$survival)){
+    arg.survival <- FALSE
+} else {
+    arg.survival <- opt$survival
+}
+
 
 
 # Survival covariates
@@ -292,6 +298,13 @@ if (is.null(opt$stratify)){
 }
 
 
+
+# Survival Plot
+if (is.null(opt$survplot)){
+    arg.survplot <- 50
+} else {
+    arg.survplot <- opt$survplot
+}
 
 
 
@@ -356,11 +369,11 @@ if (arg.serumbatch == TRUE){
 
 
 if (arg.plotmds == TRUE && arg.databatch == TRUE){
-    mdsplot <- myMDSplot(data.batch, arg.group, arg.group, arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
+    mdsplot <- myMDSplot(data.batch, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
     ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
-    mdsplot <- myMDSplot(arg.data, arg.group, arg.group, arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
+    mdsplot <- myMDSplot(arg.data, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
     ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot)
     
 } else {
@@ -542,8 +555,13 @@ if (!is.null(arg.serumdata)) {
 
 
     # Individual correlation plots
-    corr.features <- as.character(res.corr[res.corr$sig.corr == "yes",]$name)
-    my_correlation_plots(data.corr, serum.corr, corr.features, arg.filename)
+    #corr.features <- as.character(res.corr[res.corr$sig.corr == "yes",]$name)
+    corr.features <- as.character(res.corr[which(res.corr$sig.corr == "yes"),]$name)
+    if (length(corr.features) > 1) {
+        my_correlation_plots(data.corr, serum.corr, corr.features, arg.filename)
+    } else {
+        print("No significant correlations, no plotting.")
+    }
 }
 
 
@@ -572,7 +590,7 @@ if (!is.null(arg.serumdata)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-if(!is.null(arg.survivaldata)) {
+if (arg.survival == TRUE){
    
    # Setting up dataset for survival analysis, matching TIF and serum samples either batch or no batch. Only DA/DE featrues are used.
    metadata.surv <- arg.metadata[which(arg.metadata$survival == 1),]
@@ -590,14 +608,13 @@ if(!is.null(arg.survivaldata)) {
    
    # If user has specified covariates for survivalanalysis, extract these.
    if(is.null(arg.survcovar)) {
-       surv_object <- data.frame(t(data.surv), as.numeric(arg.survivaldata$outcome.time), arg.survivaldata$age, arg.survivaldata$outcome)
+       surv_object <- data.frame(t(data.surv), as.numeric(metadata.surv$outcome.time), metadata.surv$age, metadata.surv$outcome)
        colnames(surv_object) <- c(rownames(data.surv), "outcome.time", "age", "outcome")
    } else {
        my.covars <- metadata.surv[,colnames(metadata.surv) %in% arg.survcovar]
-       surv_object <- data.frame(t(data.surv), as.numeric(arg.survivaldata$outcome.time), arg.survivaldata$age, arg.survivaldata$outcome, my.covars)
+       surv_object <- data.frame(t(data.surv), as.numeric(metadata.surv$outcome.time), metadata.surv$age, metadata.surv$outcome, my.covars)
        colnames(surv_object) <- c(rownames(data.surv), "outcome.time", "age", "outcome", arg.survcovar)
    }
-   
    
    
    # datadist format for cph function with cubic splines.
@@ -654,6 +671,28 @@ if(!is.null(arg.survivaldata)) {
 
 
 
+   # Check for liniarity violation:
+   check1 <- which(as.numeric(unlist(lapply(covariate_linearity, function(x) length(x)))) == 1)
+   
+   if (length(check1) > 0) {
+       surv_object <- surv_object[,-check1]
+       covariate_linearity <- covariate_linearity[-check1]
+   }
+   
+   # Check for error, other.
+   check2 <- lapply(covariate_linearity, function(i) tryCatch({ anova(i) }, error=identity))
+   check2 <- which(as.character(vapply(check2, is, logical(1), "error")) == TRUE)
+   
+   
+   if (length(check2) > 0) {
+       surv_object <- surv_object[,-check2]
+       covariate_linearity <- covariate_linearity[-check2]
+   }
+
+
+   # Re-assign features
+   features <- colnames(surv_object)
+   
 
    # Anova comparing linear covariate and non-linear covariate.
    covariate_linearity  <- lapply(covariate_linearity, function(x) anova(x))
@@ -712,26 +751,51 @@ if(!is.null(arg.survivaldata)) {
    # Picking model based on result of linearity check.
    pha_check <- list()
 
-
+   
    for (f in features) {
        if("age" %in% covariate_nonlinear && "feature" %in% covariate_nonlinear) {
-           acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f),") + ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-           eval(acall)
-           pha_check[[as.character(f)]] <- result
-       } else if ("feature" %in% covariate_nonlinear) {
-           acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age + rcs(", as.character(f),") + ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-           eval(acall)
-           pha_check[[as.character(f)]] <- result
-       } else if ("age" %in% covariate_nonlinear) {
-           acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + ", as.character(f), " + ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-           eval(acall)
-           pha_check[[as.character(f)]] <- result
-           
-       } else {
-           acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age +", as.character(f), "+ ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-           eval(acall)
-           pha_check[[as.character(f)]] <- result
-           
+           if(is.null(arg.survcovar.original)){
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f), "), data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f),") + ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           }
+       }
+       else if ("feature" %in% covariate_nonlinear) {
+           if(is.null(arg.survcovar.original)) {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age + rcs(", as.character(f), "), data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age + rcs(", as.character(f),") + ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           }
+       }
+       else if ("age" %in% covariate_nonlinear) {
+           if(is.null(arg.survcovar.original)) {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + ", as.character(f), ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + ", as.character(f), " + ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           }
+       }
+       else {
+           if(is.null(arg.survcovar.original)) {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age +", as.character(f), ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age +", as.character(f), "+ ", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+               eval(acall)
+               pha_check[[as.character(f)]] <- result 
+           }
        }
    }
    
@@ -777,30 +841,55 @@ if(!is.null(arg.survivaldata)) {
    
    for (f in features) {
        if("age" %in% covariate_nonlinear && "feature" %in% covariate_nonlinear) {
-           acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + rcs(age) +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
-           eval(acall)
-           survival.results[[as.character(f)]] <- result
-       } else if ("feature" %in% covariate_nonlinear) {
-           acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + age +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
-           eval(acall)
-           survival.results[[as.character(f)]] <- result
-       } else if ("age" %in% covariate_nonlinear) {
-           acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ rcs(age) +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
-           eval(acall)
-           survival.results[[as.character(f)]] <- result
-           
-       } else {
-           acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ age +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
-           eval(acall)
-           survival.results[[as.character(f)]] <- result
-           
+           if(is.null(arg.survcovar.original)){
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + rcs(age), data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + rcs(age) +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           }
+       }
+       else if ("feature" %in% covariate_nonlinear) {
+           if(is.null(arg.survcovar.original)) {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + age, data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + age +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           }
+       }
+       else if ("age" %in% covariate_nonlinear) {
+           if(is.null(arg.survcovar.original)) {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ rcs(age), data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ rcs(age) +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           }
+       }
+       else {
+           if(is.null(arg.survcovar.original)) {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ age, data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           } else {
+               acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ age +", arg.survcovar.original, ", data = surv_object, x=TRUE,y=TRUE)"))
+               eval(acall)
+               survival.results[[as.character(f)]] <- result
+           }
        }
    }
    
 
 
    # Setting up data and writing out excel sheet with results and making HR stemplot
-   survival.data <- my_survival(survival.results, arg.filename)
+   survival.data <- my_survival(survival.results, arg.survplot)
    xlsx::write.xlsx(survival.data, file=paste0(arg.filename,"_survival.xlsx"), row.names=TRUE)
    
 
