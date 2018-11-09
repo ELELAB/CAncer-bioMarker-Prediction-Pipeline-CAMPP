@@ -65,7 +65,7 @@ myMDSplot <- function(my.data, my.group, my.labels, my.cols) {
     fit <- cmdscale(d,eig=TRUE, k=2)
     res<-data.frame(names=rownames(fit$points),M1=fit$points[,1],M2=fit$points[,2])
     p <- ggplot(data=res)
-    p + geom_point(aes(x=M1,y=M2,color=my.group), stroke = 0, shape = 16, size = 3) + geom_text(aes(x=M1,y=M2, label= my.labels, color=my.group)) + scale_color_manual(values  = my.cols) +
+    p + geom_point(aes(x=M1,y=M2,color=my.group), stroke = 0, shape = 16, size = 3, fill = "transparent") + geom_text(aes(x=M1,y=M2, label= my.labels, color=my.group)) + scale_color_manual(values  = my.cols) +
     coord_cartesian(xlim=c(min(res$M1)*1.4,max(res$M1)*1.4)) + theme_bw() + theme(legend.title=element_blank()) + theme(legend.text = element_text(size = 16, face="bold"), axis.title=element_text(size=16,face="bold")) + guides(colour = guide_legend(override.aes = list(size=6))) + theme(legend.position = "top") + theme(axis.text=element_text(size=16, face="bold")) + theme(axis.text = element_text(colour = "black"))
 }
 
@@ -160,7 +160,38 @@ DA_all_contrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.
 
 
 
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# LASSO FUNCTION
+# Takes arguments:
+# my.data = data marix of values
+# my.group = vector of integers specifying group.
+# IF my.multinorm=TRUE, then analysis will be multinomial, IF my.multinorm=FALSE, then then analysis will be binomial
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+
+LASSO_feature <- function(my.seed, my.data, my.group, my.multinorm=TRUE) {
+    if(my.multinorm == TRUE) {
+        set.seed(my.seed)
+        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10)
+        my.coef <- coef(my.fit, s=my.fit$lambda.1se)
+        my.ma <- as(my.coef$`1`, "matrix")
+        meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
+        rm(my.fit)
+        rm(my.coef)
+    }
+    else {
+        set.seed(my.seed)
+        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family = "binomial", type.measure = "class", nfolds = 10)
+        my.coef <- coef(my.fit, s=my.fit$lambda.1se)
+        my.ma <- as(my.coef, "matrix")
+        meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
+        rm(my.fit)
+        rm(my.coef)
+    }
+    my.ma <- names(my.ma[my.ma[,1] != 0, ])
+    return(list(my.ma, meanerror))
+}
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION FOR GETTING OUTPUT AS EXCEL FILE
@@ -182,6 +213,7 @@ excel_output <- function(my.list, my.sheetname) {
         my.list$comparison <- my.names
         xlsx::write.xlsx(my.list, file=paste0(my.sheetname,".xlsx"), row.names = FALSE)
     }
+    return(my.list)
 }
 
 
@@ -231,7 +263,7 @@ my_heatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
     pdf(paste0(my.filename,"_heatmap.pdf"))
     heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colors, rep("white", length(my.group))), margins = c(14,8), cexCol=1.2, cexRow = 1.3)
     map <- makecmap(-3:4)
-    map$colors <- colorRampPalette(brewer.pal(9, "YlGnBu"))(n = length(map$breaks)-1)
+    map$colors <- viridis((length(map$breaks)-1))
     hkey(map, x = 0, y = 0, title = "LogFC", stretch = 2)
     dev.off()
 }
@@ -250,7 +282,12 @@ my_heatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
 
 
 
+
+
+
+
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
+
 
 my_survival <- function(my.survres, my.filename, my.n) {
     survival_conf  <- lapply(my.survres, function(x) summary(x)[2, c(4,6,7)])
@@ -269,7 +306,7 @@ my_survival <- function(my.survres, my.filename, my.n) {
         n.splits <- chunk2(1:nrow(survival_conf),n.splits)
         features <- lapply(n.splits, function(x) survival_conf[x,])
         
-        p1 <- lapply(features, function(x) ggplot(x, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR), stroke = 0, shape=16) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x))))
+        p1 <- lapply(features, function(x) ggplot(x, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR)) + scale_color_manual(values=c("grey70", "black")) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x))))
         for (i in 1:length(p1)) {
             pdf(paste0(as.character(names(p1)[i]),"_individual_corrplots.pdf"), height=6, width=12)
             print(p1[i])
@@ -278,12 +315,15 @@ my_survival <- function(my.survres, my.filename, my.n) {
 
     } else {
         pdf(paste0(my.filename, "_corrplot.pdf"), height=6, width=12)
-        p1 <- ggplot(survival_conf, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR), stroke = 0, shape=16) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x)))
+        p1 <- ggplot(survival_conf, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR)) + scale_color_manual(values=c("grey70", "black")) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x)))
         print(p1)
         dev.off()
     }
     return(survival_conf)
 }
+
+
+
 
 
 
@@ -336,8 +376,8 @@ my_correlation <- function(d1, d2, my.features, my.filename) {
     pear_corr_full <- data.frame(my.names, pear_corr, pear_p_val, fdr, log2(1/fdr))
     colnames(pear_corr_full) <- c("name", "cor_coef", "pval", "fdr", "Inverse_Scaled_FDR")
     
-    corr.plot <- ggplot(pear_corr_full, aes(name, cor_coef)) +  geom_point(aes(colour = Inverse_Scaled_FDR), size=7) + scale_colour_gradient(low="lightskyblue1", high="navyblue") + scale_y_continuous(breaks=number_ticks(10)) + theme_bw() +  theme(panel.grid.major.x = element_blank()) + geom_text(aes(label=name), size=6, hjust = 0.8, vjust=-0.2, color="grey30") + theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text.y = element_text(size=14, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16), legend.title = element_text(size=14)) + xlab("") + ylab("Correlation Coefficient") + geom_hline(yintercept=c(0.0, 0.5, -0.5), color=c("grey30","maroon3", "maroon3"))
-    ggsave(paste0(my.filename, "_corrplot.pdf"), width=12, height=6, plot = corr.plot)
+    corr.plot <- ggplot(pear_corr_full, aes(name, cor_coef)) +  geom_point(aes(colour = Inverse_Scaled_FDR), size=7, stroke = 0, shape = 16) + scale_color_viridis(direction = -1) + scale_y_continuous(breaks=number_ticks(10)) + theme_bw() +  theme(panel.grid.major.x = element_blank()) + geom_text(aes(label=name), size=6, hjust = 0.8, vjust=-0.2, color="grey30") + theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text.y = element_text(size=14, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16), legend.title = element_text(size=14)) + xlab("") + ylab("Correlation Coefficient") + geom_hline(yintercept=c(0.0, 0.5, -0.5), color=rep("grey30", 3))
+    ggsave(paste0(my.filename, "_corrplot.pdf"), bg = "transparent", width=12, height=6, plot = corr.plot)
     return(pear_corr_full)
 }
 
@@ -356,7 +396,7 @@ my_correlation_plots <- function(my.data, my.serumdata, my.features, my.filename
   my.serumdata <- my.serumdata[rownames(my.serumdata) %in% my.features,]
   features <- lapply(1:nrow(my.data), function(x) data.frame(as.numeric(my.data[x,]), as.numeric(my.serumdata[x,])))
   features <- lapply(features, setNames, c("TIF_Tissue", "Serum"))
-  p1 <- lapply(features, function(x) ggplot(x, aes(TIF_Tissue, Serum)) + geom_point(shape=1, size=2.5) + theme_bw() + geom_smooth(method=lm) +  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_blank()) + theme(axis.text.x = element_text(size=12), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16)))
+  p1 <- lapply(features, function(x) ggplot(x, aes(TIF_Tissue, Serum)) + geom_point(shape=1, size=2.5) + theme_bw() + geom_smooth(method=lm, colour="black") +  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_blank()) + theme(axis.text.x = element_text(size=12), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16)))
   names(p1) <- my.features
   for (i in 1:length(p1)) {
       p1[[i]] <- p1[[i]] + ggtitle(names(p1)[i])

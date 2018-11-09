@@ -43,7 +43,8 @@ spec = matrix(c(
   "plotmds", "o", 2, "logical",
   "colors", "c", 2, "character",
   "plotheatmap", "a", 2, "character",
-  "DElist", "l", 2, "character"), byrow=TRUE, ncol=4)
+  "lasso", "l", 2, "logical",
+  "DElist", "i", 2, "character"), byrow=TRUE, ncol=4)
 
 
 opt = getopt(spec)
@@ -54,7 +55,7 @@ opt = getopt(spec)
 
 # Help
 if(!is.null(opt$help)) {
-    cat("\nFlags:\n-d --data: excelsheet with normalized counts, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n-m --metadata: excelsheet with metadata, minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n-s --serumdata: excelsheet of normalized counts from serum with the same order and as the count matrix (option -d).\n-u --survival: survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requireds splitting of the plot, default features per plot is 50.\n-t --transform: should data be transformed? Current options are 'log2', 'log10' 'logit' or 'voom'. If argument is left out, no transformation of data will occur.\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n-n --filename: Name of result files from analysis.\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n-r --FDR: Alpha level for significance.\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n-l --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
+    cat("\nFlags:\n-d --data: excelsheet with normalized counts, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n-m --metadata: excelsheet with metadata, minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n-s --serumdata: excelsheet of normalized counts from serum with the same order and as the count matrix (option -d).\n-u --survival: survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requireds splitting of the plot, default features per plot is 50.\n-t --transform: should data be transformed? Current options are 'log2', 'log10' 'logit' or 'voom'. If argument is left out, no transformation of data will occur.\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n-n --filename: Name of result files from analysis.\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n-r --FDR: Alpha level for significance.\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n-i --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
     
         stop("Argument -h (help) selected, exiting script.")
 }
@@ -85,7 +86,7 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "sva", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "RColorBrewer", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow")
+list.of.packages <- c("limma", "sva", "glmnet", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow")
 
 lapply(list.of.packages, library, character.only=T)
 
@@ -237,10 +238,10 @@ if (is.null(opt$FDR)){
 
 # Colors
 if (is.null(opt$colors)){
-    arg.colors <- as.vector(brewer.pal(length(levels(as.factor(as.character(arg.metadata$group)))),"Dark2"))
-    if (length(levels(as.factor(as.character(arg.metadata$group)))) < 3) {
-        arg.colors <- arg.colors[1:2]
-    }
+    arg.colors <- as.vector(viridis(length(levels(as.factor(as.character(arg.metadata$group)))), begin = 0.2, end = 0.8, option="cividis"))
+    #if (length(levels(as.factor(as.character(arg.metadata$group)))) < 3) {
+    #    arg.colors <- arg.colors[1:2]
+    #}
 } else {
     arg.colors <- as.list(strsplit(opt$colors, ",")[[1]])
 }
@@ -270,6 +271,13 @@ if (is.null(opt$plotheatmap)){
     arg.plotheatmap <- opt$plotheatmap
 }
 
+
+# LASSO
+if (is.null(opt$lasso)){
+    arg.lasso <- FALSE
+} else {
+    arg.lasso <- opt$lasso
+}
 
 
 # Survival Analysis
@@ -370,11 +378,11 @@ if (arg.serumbatch == TRUE){
 
 if (arg.plotmds == TRUE && arg.databatch == TRUE){
     mdsplot <- myMDSplot(data.batch, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
-    ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot)
+    ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), bg = "transparent", plot = mdsplot)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
     mdsplot <- myMDSplot(arg.data, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
-    ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot)
+    ggsave(paste0(arg.filename, "_MDSplot.pdf"), bg = "transparent", plot = mdsplot)
     
 } else {
     print("No preliminary plot requested.")
@@ -427,8 +435,7 @@ if (is.null(arg.DElist)){
         res.DE <- DA_feature_apply(contrast.matrix, arg.data, arg.design, arg.logFC, arg.FDR, NULL, FALSE)
         
         # Write results out as excel file
-        excel_output(res.DE, paste0(arg.filename,"_DE"))
-
+        DE.out <- excel_output(res.DE, paste0(arg.filename,"_DE"))
     
     } else {
         
@@ -444,10 +451,9 @@ if (is.null(arg.DElist)){
             res.DE <- DA_feature_apply(contrast.matrix, arg.data, arg.design, arg.logFC, arg.FDR, NULL, FALSE)
             
             # Write results out as excel file
-            excel_output(res.DE, paste0(arg.filename,"_databatch_DE"))
+            DE.out <- excel_output(res.DE, paste0(arg.filename,"_databatch_DE"))
         }
     }
-    
 } else {
     print("You have provided a custom list of DE/DA features. Differential expression/abundance analysis with limma will be skipped.")
 
@@ -492,13 +498,64 @@ if (arg.plotheatmap == TRUE) {
     }
     
     # heatmap colors in blue
-    arg.hm.gradient <- colorRampPalette(brewer.pal(9, "YlGnBu"))(n = 300)
+    arg.hm.gradient <- viridis(300)
     
     # Heatmap as pdf
     my_heatmap(arg.DE.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename)
 
 } else {
     print("No heatmap requested.")
+}
+
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+### LASSO Regression ###
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+if (arg.lasso == TRUE) {
+    
+    group.LASSO <- as.integer(arg.group)
+    
+    if (arg.databatch == TRUE) {
+        if (length(levels(as.factor(group.LASSO))) > 2) {
+            LASSO.res <- list(LASSO_feature(5, data.batch, group.LASSO, TRUE), LASSO_feature(15, data.batch, group.LASSO, TRUE), LASSO_feature(51, data.batch, group.LASSO, TRUE), LASSO_feature(551, data.batch, group.LASSO, TRUE), LASSO_feature(5151, data.batch, group.LASSO, TRUE))
+        } else {
+            LASSO.res <- list(LASSO_feature(5, data.batch, group.LASSO, FALSE), LASSO_feature(15, data.batch, group.LASSO, FALSE), LASSO_feature(51, data.batch, group.LASSO, FALSE), LASSO_feature(551, data.batch, group.LASSO, FALSE), LASSO_feature(5151, data.batch, group.LASSO, FALSE))
+        }
+        
+    } else {
+        if (length(levels(as.factor(group.LASSO))) > 2) {
+            LASSO.res <- list(LASSO_feature(5, arg.data, group.LASSO, TRUE), LASSO_feature(15, arg.data, group.LASSO, TRUE), LASSO_feature(51, arg.data, group.LASSO, TRUE), LASSO_feature(551, arg.data, group.LASSO, TRUE), LASSO_feature(5151, arg.data, group.LASSO, TRUE))
+        } else {
+            LASSO.res <- list(LASSO_feature(5, arg.data, group.LASSO, FALSE), LASSO_feature(15, arg.data, group.LASSO, FALSE), LASSO_feature(51, arg.data, group.LASSO, FALSE), LASSO_feature(551, arg.data, group.LASSO, FALSE), LASSO_feature(5151, arg.data, group.LASSO, FALSE))
+        }
+    }
+    
+    LASSO.res1 <- Reduce(intersect, list(LASSO.res[[1]][[1]], LASSO.res[[2]][[1]], LASSO.res[[3]][[1]], LASSO.res[[4]][[1]], LASSO.res[[5]][[1]]))
+    LASSO.res1 <- data.frame(LASSO.res1[-1])
+    colnames(LASSO.res1) <- c("LASSO.Var.Select")
+    xlsx::write.xlsx(LASSO.res1, file=paste0(arg.filename,"_LASSO.xlsx"), row.names=FALSE)
+    consensus <- DE.out[DE.out$name %in% LASSO.res1$LASSO.Var.Select,]
+    xlsx::write.xlsx(consensus, file=paste0(arg.filename,"_DEA_LASSO_Consensus.xlsx"), row.names=FALSE)
+    
+    LASSO.res2 <- round(mean(LASSO.res[[1]][[2]], LASSO.res[[2]][[2]], LASSO.res[[3]][[2]], LASSO.res[[4]][[2]], LASSO.res[[5]][[2]]), digits = 4)
+    cat(paste0("Mean cross validation error (cv.glmnet) = ", LASSO.res2,".\n"))
 }
 
 
@@ -886,7 +943,8 @@ if (arg.survival == TRUE){
        }
    }
    
-
+   
+   survival.results <- survival.results[-c((length(survival.results)-2):length(survival.results))]
 
    # Setting up data and writing out excel sheet with results and making HR stemplot
    survival.data <- my_survival(survival.results, arg.filename, arg.survplot)
