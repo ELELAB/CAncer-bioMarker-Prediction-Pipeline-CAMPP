@@ -521,43 +521,52 @@ if (arg.plotheatmap == TRUE) {
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-### LASSO Regression ###
+#                                                                                       ## LASSO Regression ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 
 
 if (arg.lasso == TRUE) {
     
     group.LASSO <- as.integer(arg.group)
+    seeds <- sample(1:1000, 10)
+    LASSO.res <- list()
     
     if (arg.databatch == TRUE) {
         if (length(levels(as.factor(group.LASSO))) > 2) {
-            LASSO.res <- list(LASSO_feature(5, data.batch, group.LASSO, TRUE), LASSO_feature(15, data.batch, group.LASSO, TRUE), LASSO_feature(51, data.batch, group.LASSO, TRUE), LASSO_feature(551, data.batch, group.LASSO, TRUE), LASSO_feature(5151, data.batch, group.LASSO, TRUE))
+            for (idx in 1:length(seeds)) {
+                LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, TRUE)
+                LASSO.res[[idx]] <-  LR
+            }
         } else {
-            LASSO.res <- list(LASSO_feature(5, data.batch, group.LASSO, FALSE), LASSO_feature(15, data.batch, group.LASSO, FALSE), LASSO_feature(51, data.batch, group.LASSO, FALSE), LASSO_feature(551, data.batch, group.LASSO, FALSE), LASSO_feature(5151, data.batch, group.LASSO, FALSE))
+            for (idx in 1:length(seeds)) {
+                LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, FALSE)
+                LASSO.res[[idx]] <-  LR
+            }
         }
-        
     } else {
         if (length(levels(as.factor(group.LASSO))) > 2) {
-            LASSO.res <- list(LASSO_feature(5, arg.data, group.LASSO, TRUE), LASSO_feature(15, arg.data, group.LASSO, TRUE), LASSO_feature(51, arg.data, group.LASSO, TRUE), LASSO_feature(551, arg.data, group.LASSO, TRUE), LASSO_feature(5151, arg.data, group.LASSO, TRUE))
+            for (idx in 1:length(seeds)) {
+                LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, TRUE)
+                LASSO.res[[idx]] <-  LR
+            }
         } else {
-            LASSO.res <- list(LASSO_feature(5, arg.data, group.LASSO, FALSE), LASSO_feature(15, arg.data, group.LASSO, FALSE), LASSO_feature(51, arg.data, group.LASSO, FALSE), LASSO_feature(551, arg.data, group.LASSO, FALSE), LASSO_feature(5151, arg.data, group.LASSO, FALSE))
+            for (idx in 1:length(seeds)) {
+                LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, FALSE)
+                LASSO.res[[idx]] <-  LR
+            }
         }
     }
-    
-    LASSO.res1 <- Reduce(intersect, list(LASSO.res[[1]][[1]], LASSO.res[[2]][[1]], LASSO.res[[3]][[1]], LASSO.res[[4]][[1]], LASSO.res[[5]][[1]]))
+    LASSO.res1 <- Reduce(intersect, lapply(LASSO.res, '[[', 1))
     LASSO.res1 <- data.frame(LASSO.res1[-1])
     colnames(LASSO.res1) <- c("LASSO.Var.Select")
     xlsx::write.xlsx(LASSO.res1, file=paste0(arg.filename,"_LASSO.xlsx"), row.names=FALSE)
     consensus <- DE.out[DE.out$name %in% LASSO.res1$LASSO.Var.Select,]
     xlsx::write.xlsx(consensus, file=paste0(arg.filename,"_DEA_LASSO_Consensus.xlsx"), row.names=FALSE)
     
-    LASSO.res2 <- round(mean(LASSO.res[[1]][[2]], LASSO.res[[2]][[2]], LASSO.res[[3]][[2]], LASSO.res[[4]][[2]], LASSO.res[[5]][[2]]), digits = 4)
+    LASSO.res2 <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
     cat(paste0("Mean cross validation error (cv.glmnet) = ", LASSO.res2,".\n"))
 }
-
 
 
 
