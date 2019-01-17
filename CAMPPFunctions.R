@@ -3,7 +3,7 @@
 #Place of employment: Danish Cancer Society Research Center
 #Date 29-05-2017
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -11,53 +11,203 @@
 													### FUNCTIONS ###
 													
 													
-													
-													
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# DATA CHECKS
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Checking Data for NA Values.
+# Takes as arguments;
+    # my.data = a dataframe of expression/abundance counts.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+ReplaceNAs <- function(my.data) {
+    na_row <- apply(my.data, 1, function(x) (sum(is.na(x))/ncol(my.data))*100)
+    
+    cat(paste0("The input data the has between " , round(min(na_row), digits = 2), "% - ", round(max(na_row), digits = 2),"%", " missing values per row."))
+    print("Variables (rows) with more than 70% missing values will be removed.")
+    
+    
+    removeNA <- which(as.vector(na_row) > 70)
+    if(length(removeNA) > 0) {
+        my.data <- my.data[-removeNA,]
+        
+    }
+    na_col <- apply(my.data, 2, function(x) (sum(is.na(x))/nrow(my.data))*100)
+    cat(paste0("The input data the has between " , round(min(na_col), digits = 2), "% - ", round(max(na_col), digits = 2),"%", " missing values per column."))
+    print("Samples (rows) with more than 80% missing values will be removed. Variables (rows) with more than 50% missing values are imputed using the overall mean per sample.. Performing k-nearest nearest neighbor imputation. N.B Uncertainty increases with number of missing values!.")
+    
+    removeNA <- which(as.vector(na_col) > 80)
+    if(length(removeNA) > 0) {
+        my.data <- my.data[,-removeNA]
+    }
+    
+    still.NA <- unique(as.vector(is.na(my.data)))
+    
+    if (TRUE %in% still.NA) {
+        my.data <- impute.knn(as.matrix(my.data), rowmax = 0.7)
+        my.data <- data.frame(my.data$data)
+    }
+    return(my.data)
+}
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Replace zeros:
+# Takes as arguments;
+    # my.data = a dataframe of expression/abundance counts.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+ReplaceZero <- function(my.data) {
+    hasNeg <- unique(as.vector(my.data < 0))
+    if (TRUE %in% hasNeg) {
+        k <- which(my.data == 0, arr.ind=TRUE)
+        my.data[k] <- rowMeans(my.data)[k[,1]]
+    } else {
+        min_per_row <- as.vector(apply(my.data, 1, function(x) min(x[x != 0])))
+        for(i in 1:nrow(my.data)){
+            my.data[i, my.data[i,] == 0] <- min_per_row[i]
+        }
+    }
+    return(my.data)
+}
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Fitting Data Distributions:
+# Takes as arguments;
+    # my.data = a dataframe of expression/abundance counts, N.B only a subset of variables should be input, not intended for the full expression matrix!
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+fit_distributions <- function(my.data) {
+    discretetype <- unique(as.vector(apply(my.data, 1, function(x) x%%1==0)))
+    hasNeg <- unique(as.vector(my.data < 0))
+    list.of.lists <- list()
+    for(idx in 1:nrow(my.data)) {
+        if (FALSE %in% discretetype) {
+            if (TRUE %in% hasNeg) {
+                fit_n <- fitdist(as.numeric(my.data[idx,]), "norm")
+                list.of.lists[[idx]] <-  list(fit_n)
+            } else {
+                fit_w  <- fitdist(as.numeric(my.data[idx,]), "weibull")
+                fit_g  <- fitdist(as.numeric(my.data[idx,]), "gamma")
+                fit_ln <- fitdist(as.numeric(my.data[idx,]), "lnorm")
+                fit_n <- fitdist(as.numeric(my.data[idx,]), "norm")
+                list.of.lists[[idx]] <-  list(fit_w, fit_g, fit_ln, fit_n)
+            }
+        }
+        if (discretetype == TRUE) {
+            fit_p <- fitdist(as.numeric(my.data[idx,]), "pois")
+            fit_n <- fitdist(as.numeric(my.data[idx,]), "norm")
+            list.of.lists[[idx]] <-  list(fit_p, fit_n)
+        }
+    }
+    names(list.of.lists) <- rownames(my.data)
+    return(list.of.lists)
+}
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Plotting Distributions:
+# Takes as arguments;
+    # my.data = a dataframe of expression/abundance counts, N.B only a subset of variables should be input, not intended for the full expression matrix!(See "Fitting Data Distributions" above)
+    # list.of.lists = Output from the function "Fitting Data Distributions" (see above). The my.data and list.of.list should have the same dimentions, e.g. length of list == nrows of dataframe.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+plot_distributions <- function(my.data, list.of.lists) {
+    discretetype <- unique(as.vector(apply(my.data, 1, function(x) x%%1==0)))
+    hasNeg <- unique(as.vector(my.data < 0))
+    for(idx in 1:length(list.of.lists)) {
+        pdf(paste0(names(list.of.lists)[idx], ".pdf"), height = 8, width = 12)
+        par(mfrow=c(2,3))
+        if (FALSE %in% discretetype) {
+            if (TRUE %in% hasNeg) {
+                descdist(as.numeric(my.data[idx,]), discrete = FALSE, boot = 500)
+                plot.legend <- c("norm")
+            } else {
+                descdist(as.numeric(my.data[idx,]), discrete = FALSE, boot = 500)
+                plot.legend <- c("Weibull", "lognormal", "gamma", "norm")
+            }
+        }
+        if (discretetype == TRUE) {
+            descdist(as.vector(my.data[idx,]), discrete = TRUE,  boot = 500)
+            plot.legend <- c("poisson", "norm")
+        }
+        denscomp(list.of.lists[[idx]], legendtext = plot.legend)
+        cdfcomp (list.of.lists[[idx]], legendtext = plot.legend)
+        qqcomp  (list.of.lists[[idx]], legendtext = plot.legend)
+        ppcomp  (list.of.lists[[idx]], legendtext = plot.legend)
+        dev.off()
+    }
+}
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # BOXPLOTS AND VIOLINPLOTS
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Function for generating boxplots: 
-# Takes as arguments; 
-	# my.data = a dataframe of expression/abundance counts
-	# my.name = a name for the plot (given as a sting)
-	# my.group = a vector of groups
-	# my.sn = a vector of numbers indicating number of samples in each group
-	# my.cols = a vector of colors for each box (one color for each group)
-	
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function for Generating Boxplots:
+# Takes as arguments;
+# my.data = a dataframe of expression/abundance counts
+# my.name = a name for the plot (given as a sting)
+# my.group = a vector of groups
+# my.sn = a vector of numbers indicating number of samples in each group
+# my.cols = a vector of colors for each box (one color for each group)
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 my.boxplots <- function(my.data, my.name, my.group, my.sn, my.cols) {
-  png(paste0(my.name,".png"), height = 800, width = 1200)
-  p1 <- apply(my.data, 1, function(x) ggplot(,aes(my.group, as.numeric(x))) + geom_boxplot(aes(fill = my.group)) + scale_fill_manual(values=my.cols) + theme_bw() + theme(legend.position="none") + geom_text(data=data.frame(), aes(x=names(c(by(as.numeric(x), my.group, median))), y=c(by(as.numeric(x), my.group, median)), label=my.sn), col='black', size=6) + labs(x = "BC Subtypes", y = "feature Abundance"))
-  nc <- ceiling(nrow(my.data)/4)
-  multiplot(plotlist = p1, cols = nc)
-  dev.off()
+    png(paste0(my.name,".png"), height = 800, width = 1200)
+    p1 <- apply(my.data, 1, function(x) ggplot(,aes(my.group, as.numeric(x))) + geom_boxplot(aes(fill = my.group)) + scale_fill_manual(values=my.cols) + theme_bw() + theme(legend.position="none") + geom_text(data=data.frame(), aes(x=names(c(by(as.numeric(x), my.group, median))), y=c(by(as.numeric(x), my.group, median)), label=my.sn), col='black', size=6) + labs(x = "BC Subtypes", y = "feature Abundance"))
+    nc <- ceiling(nrow(my.data)/4)
+    multiplot(plotlist = p1, cols = nc)
+    dev.off()
 }
 
-# Function for generating violin plots: 
-# Takes as arguments; 
-	# my.data = a dataframe of expression/abundance counts
-	# my.name = a name for the plot (given as a sting) 
-	# my.group = a vector of groups
-	# my.cols = a vector of colors for each box (one color for each group)
-	
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function for Generating Violin Plots:
+# Takes as arguments;
+# my.data = a dataframe of expression/abundance counts
+# my.name = a name for the plot (given as a sting)
+# my.group = a vector of groups
+# my.cols = a vector of colors for each box (one color for each group)
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 my.violin <- function(my.data, my.name, my.group, my.cols) {
-  pdf(paste0(my.name,".pdf"), height = 6, width = 10)
-  p1 <- apply(my.data, 1, function(x) ggplot(,aes(my.group, as.numeric(x))) + geom_violin(aes(fill = my.group), trim = FALSE) + stat_summary(fun.y=median, geom="point", size=2, color="black") + scale_fill_manual(values=my.cols) + theme_bw() + theme(legend.position="none") + theme(axis.text = element_text(size=13, colour = "black"), axis.title = element_text(size=13)) + labs(x = "feature", y = "Log abundance"))
-  nc <- ceiling(nrow(my.data)/2)
-  multiplot(plotlist = p1, cols = nc)
-  dev.off()
+    pdf(paste0(my.name,".pdf"), height = 6, width = 10)
+    p1 <- apply(my.data, 1, function(x) ggplot(,aes(my.group, as.numeric(x))) + geom_violin(aes(fill = my.group), trim = FALSE) + stat_summary(fun.y=median, geom="point", size=2, color="black") + scale_fill_manual(values=my.cols) + theme_bw() + theme(legend.position="none") + theme(axis.text = element_text(size=13, colour = "black"), axis.title = element_text(size=13)) + labs(x = "feature", y = "Log abundance"))
+    nc <- ceiling(nrow(my.data)/2)
+    multiplot(plotlist = p1, cols = nc)
+    dev.off()
 }
 
 
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Multidimensional Scaling Plot: 
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Multidimensional Scaling Plot:
 # Takes as arguments; 
 	# my.data = a dataframe of expression/abundance counts 
 	# my.group and my.lables = a vector of IDs for coloring and labeling (may be the same or different, length should be equal to ncol(dataframe))
 	# my.cols = a vector of colors (one color for each group)
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 myMDSplot <- function(my.data, my.group, my.labels, my.cols) {
@@ -134,14 +284,13 @@ DA_feature_apply <- function(my.contrasts, my.data, my.design, coLFC, coFDR, my.
 
 
 
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION FOR DA ANALYSIS WITH CLINICAL PARAMETERS. THE FUNCTION CALLS THE "DA_feature_apply" FROM ABOVE.
 # Takes as arguments; 
 	# my.data = a dataframe of expression/abundance counts
 	# my.group = a vector of groups do perform contrasts on (same length as ncol(dataframe))
 	# my.coLFC and my.coFDR = a cutoff for logFC and FDR
 	# if remove is different from NULL, a vector of indices to remove must be supplied
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 DA_all_contrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.remove=NULL) {
@@ -160,13 +309,13 @@ DA_all_contrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.
 
 
 
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # LASSO FUNCTION
 # Takes arguments:
 # my.data = data marix of values
 # my.group = vector of integers specifying group.
 # IF my.multinorm=TRUE, then analysis will be multinomial, IF my.multinorm=FALSE, then then analysis will be binomial
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -247,7 +396,7 @@ get_colors <- function(my.truestatus, my.colors) {
 
 
 
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------$
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION FOR MAKING HEATMAP
 # Takes as arguments:
         # my.DE = dataframe with counts for differential expressed/abundant features
@@ -255,7 +404,7 @@ get_colors <- function(my.truestatus, my.colors) {
         # my.colors = color pallet for groups
         # my.group = a vector of groups to color by
         # my.filename = name of output plot
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------$
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -409,6 +558,36 @@ my_correlation_plots <- function(my.data, my.serumdata, my.features, my.filename
 
 
 
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# FUNCTION FOR WGCNA - Most Interconnected Features.
+# Takes as arguments;
+# vec.of.modulecolors = vector of module colors
+# my.moduleColors = module color object from WGCNA
+# my.IC = interconnectivity object from WGCNA
+# my.ExpData = dataset, features (genes, proteins ect) as columns and samples as rows.
+# my.n = Number indicating top n% most interconnected features in dataset
+# my.name = name of output plot(s)
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my.n, my.name) {
+    my.modules <- list()
+    for (idx in 1:length(vec.of.modulecolors)) {
+        moduleC <- colnames(my.ExpData)[which(my.moduleColors == vec.of.modulecolors[[idx]])]
+        moduleCIC <- my.IC[rownames(my.IC) %in% moduleC, ]
+        moduleCIC <- moduleCIC[order(moduleCIC$kWithin,decreasing = TRUE), ]
+        modTOP <- ceiling((length(moduleC)/100) * my.n)
+        modTOP <- moduleCIC[1:modTOP,]
+        modTOP$Module <- rep(vec.of.modulecolors[[idx]],nrow(modTOP))
+        my.modules[[idx]] <- modTOP
+        pdf(paste0(my.name, "_", vec.of.modulecolors[[idx]],"_moduleHM.pdf"))
+        plotNetworkHeatmap(my.ExpData, moduleC, weights = NULL, useTOM = TRUE, power = softPower, networkType = "unsigned", main = "Heatmap of the network")
+        dev.off()
+    }
+    names(my.modules) <- vec.of.modulecolors
+    return(my.modules)
+}
+
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION FOR MAKING MULTIPLE ggplotS IN ONE FIGURE - FUNCTION WAS OBAINED FROM
@@ -450,3 +629,5 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
   }
 }
+
+
