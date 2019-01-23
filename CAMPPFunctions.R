@@ -48,9 +48,23 @@ ReplaceNAs <- function(my.data) {
     still.NA <- unique(as.vector(is.na(my.data)))
     
     if (TRUE %in% still.NA) {
-        my.data <- impute.knn(as.matrix(my.data), rowmax = 0.7)
-        my.data <- data.frame(my.data$data)
+        varnames <-  rownames(my.data)
+        
+        if (checkData(as.matrix(my.data))[1] == FALSE) {
+            my.data <- as.data.frame(lapply(my.data, as.numeric))
+        }
+        
+        file <- try(my.data.lls <- data.frame(completeObs(llsImpute(as.matrix(my.data), k = 10, correlation="spearman", allVariables=TRUE))))
+        hasNeg <- unique(as.vector(my.data.lls < 0))
+        if (TRUE %in% hasNeg || class(file) == "try-error") {
+            my.data <- impute.knn(as.matrix(my.data), rowmax = 0.7)
+            my.data <- data.frame(my.data$data)
+        } else {
+            my.data <- my.data.lls
+            rm(file)
+        }
     }
+    rownames(my.data) <- varnames
     return(my.data)
 }
 
@@ -135,21 +149,24 @@ plot_distributions <- function(my.data, list.of.lists) {
         par(mfrow=c(2,3))
         if (FALSE %in% discretetype) {
             if (TRUE %in% hasNeg) {
-                descdist(as.numeric(my.data[idx,]), discrete = FALSE, boot = 500)
+                descdist(as.numeric(my.data[idx,]), discrete = FALSE, boot = 500, obs.col = viridis(1), boot.col = viridis(5)[4])
                 plot.legend <- c("norm")
+                plot.colors <- viridis(1)
             } else {
-                descdist(as.numeric(my.data[idx,]), discrete = FALSE, boot = 500)
+                descdist(as.numeric(my.data[idx,]), discrete = FALSE, boot = 500, obs.col = viridis(1), boot.col = viridis(5)[4])
                 plot.legend <- c("Weibull", "lognormal", "gamma", "norm")
+                plot.colors <- viridis(4)
             }
         }
         if (discretetype == TRUE) {
-            descdist(as.vector(my.data[idx,]), discrete = TRUE,  boot = 500)
+            descdist(as.vector(my.data[idx,]), discrete = TRUE,  boot = 500, obs.col = viridis(1), boot.col = viridis(5)[4])
             plot.legend <- c("poisson", "norm")
+            plot.colors <- viridis(2)
         }
-        denscomp(list.of.lists[[idx]], legendtext = plot.legend)
-        cdfcomp (list.of.lists[[idx]], legendtext = plot.legend)
-        qqcomp  (list.of.lists[[idx]], legendtext = plot.legend)
-        ppcomp  (list.of.lists[[idx]], legendtext = plot.legend)
+        denscomp(list.of.lists[[idx]], legendtext = plot.legend, fitcol = plot.colors)
+        cdfcomp (list.of.lists[[idx]], legendtext = plot.legend, fitcol = plot.colors, datapch=16)
+        qqcomp  (list.of.lists[[idx]], legendtext = plot.legend, fitcol = plot.colors, fitpch=16)
+        ppcomp  (list.of.lists[[idx]], legendtext = plot.legend, fitcol = plot.colors, fitpch=16)
         dev.off()
     }
 }
