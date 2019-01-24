@@ -62,7 +62,7 @@ opt = getopt(spec)
 if(!is.null(opt$help)) {
     cat("\nFlags:\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If serum data is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n\n-s --serumdata: file (xlsx or txt) with serum expression values with the same order and as the count matrix (option -d).\n\n-u --survival: survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If serum data is provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If serum data is provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n\n-n --filename: Name of result files from analysis.\n\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n\n-r --FDR: Alpha level for significance.\n\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-i --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
     
-        stop("Argument -h (help) selected, exiting script.")
+    stop("\n- Argument -h (help) selected, exiting script.")
 }
 
 
@@ -103,23 +103,23 @@ source("CAMPPFunctions.R")
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ARGUMENTS SPECIFYING DATASETS
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+cat("\nCAMPP Running Messages:\n")
 
 
 
 # Data
 if (is.null(opt$data)){
-    stop("Argument data (-d) is missing. Data provided must be an excel sheet with features (genes, proteins ect.) as rows and samples as columns.")
+    stop("\n- Argument data (-d) is missing. Data provided must be an excel sheet with features (genes, proteins ect.) as rows and samples as columns.\n")
 } else {
     arg.data <- opt$data
     
     file <- try(arg.data <- openxlsx::read.xlsx(arg.data, colNames = TRUE, rowNames = TRUE), silent = TRUE)
     if (class(file) == "try-error") {
-        print("Data file is not .xlsx, trying .txt")
+        cat("\n- Data file is not .xlsx, trying .txt\n")
         rm(file)
         file <- try(arg.data <- read.delim(arg.data, header = TRUE, row.names = 1), silent = TRUE)
         if (class(file) == "try-error") {
-            stop("Data file must be .xlsx or .txt")
+            stop("\n- Data file must be .xlsx or .txt\n")
         }
     }
     rm(file)
@@ -138,11 +138,11 @@ if (is.null(opt$serumdata)){
     
     file <- try(arg.serumdata <- openxlsx::read.xlsx(arg.serumdata, colNames = TRUE, rowNames = TRUE), silent = TRUE)
     if (class(file) == "try-error") {
-        print("Serumdata file is not .xlsx, trying .txt")
+        cat("\n- Serumdata file is not .xlsx, trying .txt\n")
         rm(file)
         file <- try(arg.serumdata <- read.delim(arg.serumdata, header = TRUE, row.names = 1), silent = TRUE)
         if (class(file) == "try-error") {
-            stop("Serumdata file must be .xlsx or .txt")
+            stop("\n- Serumdata file must be .xlsx or .txt\n")
         }
     }
     rm(file)
@@ -171,17 +171,17 @@ if (!is.null(arg.serumdata)) {
 
 # Metadata
 if (is.null(opt$metadata)){
-    stop("Argument metadata (-m) is missing. Metadata provided must be an excel sheet with minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).")
+    stop("\n- Argument metadata (-m) is missing. Metadata provided must be an excel sheet with minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n")
 } else {
     arg.metadata <- opt$metadata
     
     file <- try(arg.metadata <- openxlsx::read.xlsx(arg.metadata, colNames = TRUE, rowNames = FALSE), silent = TRUE)
     if (class(file) == "try-error") {
-        print("Metadata file is not .xlsx, trying .txt")
+        cat("\n- Metadata file is not .xlsx, trying .txt\n")
         rm(file)
         file <- try(arg.metadata <- read.delim(arg.metadata, header = TRUE), silent = TRUE)
         if (class(file) == "try-error") {
-            stop("Metadata file must be .xlsx or .txt")
+            stop("\n- Metadata file must be .xlsx or .txt\n")
         }
     }
     rm(file)
@@ -192,7 +192,7 @@ if (is.null(opt$metadata)){
     # Vector with group and batch for DE and MDS
     try(arg.group <- as.factor(as.character(arg.metadata$group)))
     if (length(arg.group)<1) {
-        stop("Column 'group' is missing from the metadata. This column is mandatory, errors will arise. See -h for help.")
+        stop("\n- Column 'group' is missing from the metadata. This column is mandatory, errors will arise. See -h for help.\n")
     }
     try(arg.batch <- as.factor(as.character(arg.metadata$batch)))
     try(arg.sbatch <- as.factor(as.character(arg.metadata$sbatch)))
@@ -213,7 +213,7 @@ if (is.null(opt$metadata)){
 
 # Variant (datatype)
 if (is.null(opt$variant)){
-    stop("Argument data (-v) is missing. -v specifies type of input data (and serumdata, if included).")
+    stop("\n- Argument data (-v) is missing. -v specifies type of input data (and serumdata, if included).\n")
 } else {
     arg.variant <- unlist(strsplit(opt$variant, split=","))
 }
@@ -222,7 +222,7 @@ if (is.null(opt$variant)){
 
 # Standardize data
 if (is.null(opt$standardize)){
-    arg.standardize <- c("None","None")
+    arg.standardize <- c("none", "none")
 } else {
     arg.standardize <- unlist(strsplit(opt$standardize, split=","))
 }
@@ -231,7 +231,7 @@ if (is.null(opt$standardize)){
 
 # Transform
 if (is.null(opt$transform)){
-    arg.transform <- c("None","None")
+    arg.transform <- c("none", "none")
 } else {
     arg.transform <- unlist(strsplit(opt$transform, split=","))
 }
@@ -272,7 +272,7 @@ if (is.null(opt$plotmds)){
 
 # LogFC
 if (is.null(opt$logFC)){
-   print("No log fold change cut-off for significant hits has been chosen. For log2 transformed data a logFC cut-off of +/- 1 is most commenly used. For for untransformed data a fold change of +/- 2 is equivalent")
+   cat("\n- No log fold change cut-off for significant hits has been chosen. For log2 transformed data a logFC cut-off of +/- 1 is most commenly used. For for untransformed data a fold change of +/- 2 is equivalent.\n")
    arg.logFC <- 0
 } else {
     arg.logFC <- opt$logFC
@@ -394,36 +394,43 @@ setwd("Results/")
 
 
 
-# Check if data and/or serum data contain zeros.
+# Check if data and/or serum data contain zeros and negative values.
+
 hasZeroD <- unique(as.vector(arg.data == 0))
-if (TRUE %in% hasZeroD) {
-    arg.data.original <- arg.data
-    arg.data <- ReplaceZero(arg.data)
-}
-
-
-if (!is.null(arg.serumdata)) {
-    hasZeroS<- unique(as.vector(arg.serumdata == 0))
-    if (TRUE %in% hasZeroS) {
-        arg.serumdata.original <- arg.serumdata
-        arg.serumdata <- ReplaceZero(arg.serumdata)
-    }
-}
-
-
-# Check if if data and/or serum data contain negatives.
-
 hasNegD <- unique(as.vector(arg.data < 0))
-if (TRUE %in% hasNegD & arg.transform[1] %in% c("log2", "log10", "logit")) {
-    stop("Data contains negative values and cannot be log transformed. Re-run command WITHOUT flag -t")
-}
 
-if (!is.null(arg.serumdata)) {
-    hasNegS <- unique(as.vector(arg.serumdata < 0))
-    if (TRUE %in% hasNegS & arg.transform[2] %in% c("log2", "log10", "logit")) {
-        stop("Serum data contains negative values and cannot be log transformed. Re-run command WITHOUT flag -t")
+
+if(arg.transform[1] %in% c("log2", "log10", "logit")) {
+    if (TRUE %in% hasNegD) {
+        stop("\n- Data contains negative values and cannot be log transformed. Re-run command WITHOUT flag -t, or alternatively if using two datasets, specify 'none' as the -t input for the dataset with negative values, e.g. 'none,log2' or 'log2,none'.\n")
+    } else {
+        if (TRUE %in% hasZeroD) {
+            arg.data.original <- arg.data
+            arg.data <- ReplaceZero(arg.data)
+        }
     }
 }
+
+
+
+if (!is.null(arg.serumdata)){
+    hasZeroS <- unique(as.vector(arg.serumdata == 0))
+    hasNegS <- unique(as.vector(arg.serumdata < 0))
+}
+
+if(!is.null(arg.serumdata) & arg.transform[2] %in% c("log2", "log10", "logit")) {
+    if (TRUE %in% hasNegS) {
+        stop("\n- Serum data contains negative values and cannot be log transformed. Re-run command WITHOUT flag -t, or alternatively if using two datasets, specify 'none' as the -t input for the dataset with negative values, e.g. 'none,log2' or 'log2,none'.\n")
+    } else {
+        if (TRUE %in% hasZeroS) {
+            arg.serumdata.original <- arg.serumdata
+            arg.serumdata <- ReplaceZero(arg.serumdata)
+        }
+    }
+}
+
+
+
 
 
 
@@ -444,21 +451,7 @@ NB <- " N.B This pipeline does not handle background correction of single-channe
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Dataset
-if (arg.variant[1] == "array") {
-    if (arg.standardize[1] == "mean") {
-        arg.data <- scale(log2(arg.data), scale = FALSE)
-        print(paste0("-v = array and -z = mean. Data will be log2 transformed and mean centered.", NB))
-        
-    } else if (arg.standardize[1] == "median") {
-        rowmed <- apply(log2(arg.data),1,median)
-        arg.data <- arg.data - rowmed
-        print(paste0("-v = array and -z = median. Data will be log2 transformed and median centered.", NB))
-        
-    } else {
-        arg.data <- normalizeQuantiles(log2(arg.data))
-        print(paste0("-v = array. Data will be log2 transformed and normalized on the quantiles.",NB))
-    }
-} else if (arg.variant[1] == "seq") {
+if (arg.variant[1] == "seq") {
     if (exists("arg.data.original")) {
         arg.data <- arg.data.original
     }
@@ -469,9 +462,9 @@ if (arg.variant[1] == "array") {
     arg.data <- calcNormFactors(arg.data, method = "TMM")
     arg.data <- voom(arg.data, design, plot=FALSE)
     arg.data <- arg.data$E
-    print("-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.")
+    cat("\n-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.\n")
     
-} else if (arg.variant[1] %in% c("ms", "other")) {
+} else if (arg.variant[1] %in% c("array", "ms", "other")) {
     if (arg.transform[1] == "log2") {
         arg.data <- log2(arg.data)
     } else if (arg.transform[1] == "logit") {
@@ -479,23 +472,26 @@ if (arg.variant[1] == "array") {
     } else if (arg.transform[1] == "log10"){
         arg.data <- log10(arg.data)
     } else {
-        print("-t is not specified for data, log transformation will NOT be performed.")
+        cat("\n-t is not specified for data, log transformation will NOT be performed.\n")
         arg.data <- arg.data
     }
     if (arg.standardize[1] == "mean") {
         arg.data <- scale(arg.data, scale = FALSE)
+        cat(paste0("\n-v = array and -z = mean. Data will be mean centered.", NB, "\n"))
+        
     } else if (arg.standardize[1] == "median") {
         rowmed <- apply(arg.data,1,median)
         arg.data <- arg.data - rowmed
+        cat(paste0("\n-v = array and -z = median. Data will be median centered.", NB, "\n"))
+    } else if (!(arg.standardize[1] %in% c("mean", "median")) & arg.variant[1] == "array") {
+        arg.data <- normalizeQuantiles(arg.data)
+        cat(paste0("\n-v = array. Data will be normalized on the quantiles.",NB, "\n"))
     } else {
-        arg.data <- arg.data
-        print("-z is not specified for data, standardization on mean/median will NOT be performed.")
+        cat("\n- No standardization requested. If argument -v is 'array', data will be normalized on quantile (NormalizeBetweenArrays), otherwise no normalization will be performed.\n")
     }
 } else {
-    print("Option -v is mandatory and specifies data type (variant). Options are; array, seq, ms or other. See user manual for specifics")
-    
+    stop("\n- Option -v is mandatory and specifies data type (variant). Options are; array, seq, ms or other. See user manual for specifics.\n")
 }
-
 
 
 
@@ -503,22 +499,8 @@ if (arg.variant[1] == "array") {
 # Serum Dataset
 
 
-if (length(arg.variant) > 1 & !is.null(arg.serumdata)) {
-    if (arg.variant[2] == "array") {
-        if (arg.standardize[2] == "mean") {
-            arg.serumdata <- scale(log2(arg.serumdata), scale = FALSE)
-            print(paste0("-v = array and -z = mean. serumdata will be log2 transformed and mean centered.", NB))
-            
-        } else if (arg.standardize[2] == "median") {
-            rowmed <- apply(log2(arg.serumdata),1,median)
-            arg.serumdata <- arg.serumdata - rowmed
-            print(paste0("-v = array and -z = median. serumdata will be log2 transformed and median centered.", NB))
-            
-        } else {
-            arg.serumdata <- normalizeQuantiles(log2(arg.serumdata))
-            print(paste0("-v = array. serumdata will be log2 transformed and normalized on the quantiles.", NB))
-        }
-    } else if (arg.variant[2] == "seq") {
+if (!is.null(arg.serumdata)) {
+    if (arg.variant[2] == "seq") {
         if (exists("arg.serumdata.original")) {
             arg.serumdata <- arg.serumdata.original
         }
@@ -529,45 +511,38 @@ if (length(arg.variant) > 1 & !is.null(arg.serumdata)) {
         arg.serumdata <- calcNormFactors(arg.serumdata, method = "TMM")
         arg.serumdata <- voom(arg.serumdata, design, plot=FALSE)
         arg.serumdata <- arg.serumdata$E
-        print("-v = seq. serumdata will be filtered for lowly expressed variables, normalized and voom transformed.")
+        cat("\n-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.\n")
         
-    } else if (arg.variant[2] %in% c("ms", "other")) {
-        if (length(arg.transform) > 1) {
-            if (arg.transform[2] == "log2") {
-                arg.serumdata <- log2(arg.serumdata)
-            } else if (arg.transform[2] == "logit") {
-                arg.serumdata <- logit(arg.serumdata)
-            } else if (arg.transform[2] == "log10"){
-                arg.serumdata <- log10(arg.serumdata)
-            } else {
-                arg.serumdata <- arg.serumdata
-                print("-t is not specified for serumdata, log transformation will NOT be performed.")
-            }
+    } else if (arg.variant[2] %in% c("array", "ms", "other")) {
+        if (arg.transform[2] == "log2") {
+            arg.serumdata <- log2(arg.serumdata)
+        } else if (arg.transform[2] == "logit") {
+            arg.serumdata <- logit(arg.serumdata)
+        } else if (arg.transform[2] == "log10"){
+            arg.serumdata <- log10(arg.serumdata)
         } else {
-            print("As second entry in -t argument is empty, tranformation of serum data will NOT be performed.")
+            cat("\n-t is not specified for data, log transformation will NOT be performed.\n")
+            arg.serumdata <- arg.serumdata
         }
-        if (length(arg.standardize > 1)) {
-            if (arg.standardize[2] == "mean") {
-                arg.serumdata <- scale(arg.serumdata, scale = FALSE)
-            } else if (arg.standardize[2] == "median") {
-                rowmed <- apply(arg.serumdata,1,median)
-                arg.serumdata <- arg.serumdata - rowmed
-            } else {
-                arg.serumdata <- arg.serumdata
-                print("As second entry in -z argument is empty, standardization of serum data will NOT be performed.")
-            }
+        if (arg.standardize[2] == "mean") {
+            arg.serumdata <- scale(arg.serumdata, scale = FALSE)
+            cat(paste0("\n-v = array and -z = mean. Data will be mean centered.", NB, "\n"))
+            
+        } else if (arg.standardize[2] == "median") {
+            rowmed <- apply(arg.serumdata,1,median)
+            arg.serumdata <- arg.serumdata - rowmed
+            cat(paste0("\n-v = array and -z = median. Data will be median centered.", NB, "\n"))
+        } else if (!(arg.standardize[2] %in% c("mean", "median")) & arg.variant[2] == "array") {
+            arg.serumdata <- normalizeQuantiles(arg.serumdata)
+            cat(paste0("\n-v = array. Data will be normalized on the quantiles.",NB, "\n"))
         } else {
-            print("No standardization of serum data will be performed.")
+            cat("\n- No standardization requested. If argument -v is 'array', data will be normalized on quantile (NormalizeBetweenArrays), otherwise no normalization will be performed.\n")
         }
     } else {
-        print("Option -v is mandatory and specifies data and serumdata type (variant). If serumdata is included, -v should be provided as a comma separated list (See user manual for specifics). Options are; array, seq, ms, other.")
-        
-    }
-} else {
-    if (length(arg.variant) <= 1 & !is.null(arg.serumdata)) {
-        stop("Option -v is mandatory and specifies data and serumdata type (variant). If serumdata is included, -v should be provided as a comma separated list (See user manual for specifics). Options are; array, seq, ms, other.")
+        stop("\n- Option -v is mandatory and specifies data type (variant). Options are; array, seq, ms or other. See user manual for specifics.\n")
     }
 }
+
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -591,10 +566,10 @@ if (arg.databatch == TRUE){
         data.batch <- ComBat(as.matrix(arg.data), arg.batch, arg.design, par.prior=TRUE,prior.plots=FALSE)
     } else {
         data.batch <- arg.data
-        print("No column named batch in the metadata file. Continuing without batch correction.")
+        cat("\n- No column named batch in the metadata file. Continuing without batch correction.\n")
     }
 } else {
-    print("No batch correction requested")
+    cat("\n- No batch correction requested.\n")
 }
 
 
@@ -607,10 +582,10 @@ if (arg.serumbatch == TRUE){
         serum.data.batch <- ComBat(as.matrix(arg.serumdata), arg.sbatch, arg.design, par.prior=TRUE,prior.plots=FALSE)
     } else {
         serum.data.batch <- arg.serumdata
-        print("No column named sbatch in the metadata file. Continuing without serum batch correction.")
+        cat("\n- No column named sbatch in the metadata file. Continuing without serum batch correction.\n")
     }
 } else {
-    print("No serum batch correction requested")
+    cat("\n- No serum batch correction requested.\n")
 }
 
 
@@ -687,7 +662,7 @@ if (arg.plotmds == TRUE && arg.databatch == TRUE){
     ggsave(paste0(arg.filename, "_MDSplot.pdf"), bg = "transparent", plot = mdsplot)
     
 } else {
-    print("No preliminary plot requested.")
+    cat("\n- No preliminary plot requested.\n")
 }
 
 
@@ -757,7 +732,7 @@ if (is.null(arg.DElist)){
         }
     }
 } else {
-    print("You have provided a custom list of DE/DA features. Differential expression/abundance analysis with limma will be skipped.")
+    cat("\n- You have provided a custom list of DE/DA features. Differential expression/abundance analysis with limma will be skipped.\n")
 
 }
 
@@ -777,7 +752,7 @@ if (!is.null(res.DE)) {
 } else if (!is.null(arg.DElist)) {
     res.DE.names <- arg.DElist
 } else {
-    stop("No signficant DE/DA hits found. Check output file from differential expression analysis. You can also provide a custom file of DE/DA features. See argument -l.")
+    stop("\n- No signficant DE/DA hits found. Check output file from differential expression analysis. You can also provide a custom file of DE/DA features. See argument -l.\n")
 }
 
 
@@ -806,7 +781,7 @@ if (arg.plotheatmap == TRUE) {
     my_heatmap(arg.DE.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename)
 
 } else {
-    print("No heatmap requested.")
+    cat("\n- No heatmap requested.\n")
 }
 
 
@@ -917,7 +892,7 @@ if (!is.null(arg.serumdata)) {
     res.corr <- my_correlation(data.corr, serum.corr, res.DE.names, arg.filename)
     
     
-    # Print out significant hits in Excel
+    # print out significant hits in Excel
     res.corr$sig.corr <- ifelse(res.corr$fdr <= arg.FDR, "yes", "no")
     xlsx::write.xlsx(res.corr, file=paste0(arg.filename,"_corr_serum.xlsx"), row.names=FALSE)
 
@@ -928,7 +903,7 @@ if (!is.null(arg.serumdata)) {
     if (length(corr.features) > 1) {
         my_correlation_plots(data.corr, serum.corr, corr.features, arg.filename)
     } else {
-        print("No significant correlations, no plotting.")
+        cat("\n- No significant correlations, no plotting.\n")
     }
 }
 
@@ -1096,7 +1071,7 @@ if (arg.survival == TRUE){
    
    # Updating covariates with cubic splines.
    if (length(covariate_nonlinear) > 0) {
-       cat(paste0("The following continious covariate(s) may be violating the assumption of linearity:  ", covariate_nonlinear,".\nCubic splines will be added.\n"))
+       cat(paste0("\n- The following continious covariate(s) may be violating the assumption of linearity:  ", covariate_nonlinear,".\nCubic splines will be added.\n"))
        for (i in 1:length(arg.survcovar.original)) {
            if (arg.survcovar.original[i] %in% covariate_nonlinear) {
                arg.survcovar.original[i] <- paste0("rcs(", arg.survcovar.original[i], ")")
@@ -1175,7 +1150,7 @@ if (arg.survival == TRUE){
    pha.fail.test <- as.character(unlist(lapply(pha_check, function(x) rownames(x)[apply(x, 1, function(u) any(u < 0.05))])))
 
 
-   cat("WARNING: The following features and/or covariates failed the test of proportional hazard: ", pha.fail.test, "\nIF the covariates that failed are categorical you may use strata by re-running the pipline adding flag -y followed by the names of the categorical covariates to stratify (if multiple then separate by comma). \nN.B, this pipeline does not handle continuous variables that violate the proportional hazard assumption, if any of these failed PH test, the hazard ratios of these should NOT be evaluated.\n")
+   cat("\nWARNING: The following features and/or covariates failed the test of proportional hazard: ", pha.fail.test, "\nIF the covariates that failed are categorical you may use strata by re-running the pipline adding flag -y followed by the names of the categorical covariates to stratify (if multiple then separate by comma). \nN.B, this pipeline does not handle continuous variables that violate the proportional hazard assumption, if any of these failed PH test, the hazard ratios of these should NOT be evaluated.\n")
    
    
    
@@ -1293,7 +1268,7 @@ if (arg.WGCNA == TRUE) {
     
     # Check data
     gsg <- goodSamplesGenes(data.WGCNA)
-    cat(paste0("Data set is OK for WGCNA - ", gsg$allOK,".\n"))
+    cat(paste0("- Data set is OK for WGCNA - ", gsg$allOK,".\n"))
     
     # Plot power estimates of data
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

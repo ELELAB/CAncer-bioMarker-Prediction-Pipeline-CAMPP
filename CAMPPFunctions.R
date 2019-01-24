@@ -27,8 +27,7 @@
 ReplaceNAs <- function(my.data) {
     na_row <- apply(my.data, 1, function(x) (sum(is.na(x))/ncol(my.data))*100)
     
-    cat(paste0("The input data the has between " , round(min(na_row), digits = 2), "% - ", round(max(na_row), digits = 2),"%", " missing values per row."))
-    print("Variables (rows) with more than 70% missing values will be removed.")
+    cat(paste0("\n- The input data the has between " , round(min(na_row), digits = 2), "% - ", round(max(na_row), digits = 2),"%", " missing values per row.\n- Variables (rows) with more than 70% missing values will be removed.\n"))
     
     
     removeNA <- which(as.vector(na_row) > 70)
@@ -37,8 +36,7 @@ ReplaceNAs <- function(my.data) {
         
     }
     na_col <- apply(my.data, 2, function(x) (sum(is.na(x))/nrow(my.data))*100)
-    cat(paste0("The input data the has between " , round(min(na_col), digits = 2), "% - ", round(max(na_col), digits = 2),"%", " missing values per column."))
-    print("Samples (rows) with more than 80% missing values will be removed. Variables (rows) with more than 50% missing values are imputed using the overall mean per sample.. Performing k-nearest nearest neighbor imputation. N.B Uncertainty increases with number of missing values!.")
+    cat(paste0("\n- The input data the has between " , round(min(na_col), digits = 2), "% - ", round(max(na_col), digits = 2),"%", " missing values per column.\n- Samples (rows) with more than 80% missing values will be removed. Variables (rows) with more than 50% missing values are imputed using the overall mean per sample.\n... Performing missing value imputation. N.B Uncertainty increases with number of missing values!.\n"))
     
     removeNA <- which(as.vector(na_col) > 80)
     if(length(removeNA) > 0) {
@@ -55,8 +53,10 @@ ReplaceNAs <- function(my.data) {
         }
         
         file <- try(my.data.lls <- data.frame(completeObs(llsImpute(as.matrix(my.data), k = 10, correlation="spearman", allVariables=TRUE))))
-        hasNeg <- unique(as.vector(my.data.lls < 0))
-        if (TRUE %in% hasNeg || class(file) == "try-error") {
+        hasNegB <- unique(as.vector(my.data < 0))
+        hasNegA <- unique(as.vector(my.data.lls < 0))
+        
+        if (class(file) == "try-error" || TRUE %in% hasNegA & hasNegB == FALSE) {
             my.data <- impute.knn(as.matrix(my.data), rowmax = 0.7)
             my.data <- data.frame(my.data$data)
         } else {
@@ -80,18 +80,14 @@ ReplaceNAs <- function(my.data) {
 
 
 ReplaceZero <- function(my.data) {
-    hasNeg <- unique(as.vector(my.data < 0))
-    if (TRUE %in% hasNeg) {
-        k <- which(my.data == 0, arr.ind=TRUE)
-        my.data[k] <- rowMeans(my.data)[k[,1]]
-    } else {
-        min_per_row <- as.vector(apply(my.data, 1, function(x) min(x[x != 0])))
-        for(i in 1:nrow(my.data)){
-            my.data[i, my.data[i,] == 0] <- min_per_row[i]
-        }
+    min_per_row <- as.vector(apply(my.data, 1, function(x) min(x[x != 0])))
+    for(i in 1:nrow(my.data)){
+        my.data[i, my.data[i,] == 0] <- min_per_row[i]
     }
     return(my.data)
 }
+
+
 
 
 
@@ -371,7 +367,7 @@ LASSO_feature <- function(my.seed, my.data, my.group, my.multinorm=TRUE) {
 
 excel_output <- function(my.list, my.sheetname) {
     if (is.null(my.list)) {
-        print("Differential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict?")
+        cat("\nDifferential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict?\n")
     } else {
         my.list <- do.call(rbind, unlist(my.list, recursive=FALSE))
         my.names <- gsub("1[.](.*)|2[.](.*)", "", rownames(my.list))
