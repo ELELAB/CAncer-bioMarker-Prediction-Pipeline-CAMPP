@@ -15,7 +15,7 @@
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-list.of.packages <- c("getopt","limma", "edgeR", "glmnet", "sva", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods")
+list.of.packages <- c("getopt","limma", "edgeR", "glmnet", "sva", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC")
 
 
 missing.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]

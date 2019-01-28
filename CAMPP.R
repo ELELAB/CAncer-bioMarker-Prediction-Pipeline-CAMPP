@@ -46,7 +46,7 @@ spec = matrix(c(
   "plotmds", "o", 2, "logical",
   "colors", "c", 2, "character",
   "plotheatmap", "a", 2, "character",
-  "lasso", "l", 2, "logical",
+  "lasso", "l", 2, "numeric",
   "WGCNA", "w", 2, "logical",
   "cutoffWGCNA", "x", 2, "numeric",
   "DElist", "i", 2, "character"), byrow=TRUE, ncol=4)
@@ -91,7 +91,7 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "sva", "edgeR", "glmnet", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods")
+list.of.packages <- c("limma", "sva", "edgeR", "glmnet", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC")
 
 lapply(list.of.packages, library, character.only=T)
 
@@ -325,7 +325,7 @@ if (is.null(opt$plotheatmap)){
 
 # LASSO
 if (is.null(opt$lasso)){
-    arg.lasso <- FALSE
+    arg.lasso <- NULL
 } else {
     arg.lasso <- opt$lasso
 }
@@ -655,11 +655,11 @@ if (arg.datacheck == TRUE & !is.null(arg.serumdata)) {
 
 if (arg.plotmds == TRUE && arg.databatch == TRUE){
     mdsplot <- myMDSplot(data.batch, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
-    ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), bg = "transparent", plot = mdsplot)
+    ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
     mdsplot <- myMDSplot(arg.data, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
-    ggsave(paste0(arg.filename, "_MDSplot.pdf"), bg = "transparent", plot = mdsplot)
+    ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot)
     
 } else {
     cat("\n- No preliminary plot requested.\n")
@@ -802,47 +802,118 @@ if (arg.plotheatmap == TRUE) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-
-if (arg.lasso == TRUE) {
+if (!is.null(arg.lasso)) {
+    if(arg.lasso <= 0.0 || arg.lasso > 1.0 ) {
+        stop("\n- The input for flag -l denotes hyperparameter alpha. This value must be set to 0.0 < x < 1.0 for Elastic Net (0.5 is default) or to 1.0 for LASSO regression. Re-run the pipeline again with correct -l input or remove -l all together.\n")
+    }
+    lasso.list <- list()
+    lasso.lev <- levels(arg.group)
+    for (idx in 1:length(lasso.lev)) {
+        pos <- which(arg.group == as.character(lasso.lev[idx]))
+        lasso.list[[idx]] <- pos
+    }
+    names(lasso.list) <- lasso.lev
+    len <- unlist(lapply(lasso.list, function(x) length(x)))
     
-    group.LASSO <- as.integer(arg.group)
+    test.train <- unique(len >= 50)
+    too.few <- unique(len < 10)
+    
+    
+    # Stop Lasso if too few samples
+    if (TRUE %in% too.few) {
+        stop("\n- LASSO cannot be performed, too few samples per group, minimum is 10!\n")
+    }
+    
+    
+    group.LASSO <- arg.group
     seeds <- sample(1:1000, 10)
     LASSO.res <- list()
     
-    if (arg.databatch == TRUE) {
-        if (length(levels(as.factor(group.LASSO))) > 2) {
-            for (idx in 1:length(seeds)) {
-                LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, TRUE)
-                LASSO.res[[idx]] <-  LR
+    if(FALSE %in% test.train) {
+        if (arg.databatch == TRUE) {
+            if (length(levels(as.factor(group.LASSO))) > 2) {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, FALSE ,TRUE)
+                    LASSO.res[[idx]] <-  LR
+                }
+            } else {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, FALSE, FALSE)
+                    LASSO.res[[idx]] <-  LR
+                }
             }
         } else {
-            for (idx in 1:length(seeds)) {
-                LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, FALSE)
-                LASSO.res[[idx]] <-  LR
+            if (length(levels(as.factor(group.LASSO))) > 2) {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, FALSE ,TRUE)
+                    LASSO.res[[idx]] <-  LR
+                }
+            } else {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, FALSE ,FALSE)
+                    LASSO.res[[idx]] <-  LR
+                }
             }
         }
     } else {
-        if (length(levels(as.factor(group.LASSO))) > 2) {
-            for (idx in 1:length(seeds)) {
-                LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, TRUE)
-                LASSO.res[[idx]] <-  LR
+        if (arg.databatch == TRUE) {
+            if (length(levels(as.factor(group.LASSO))) > 2) {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, TRUE ,TRUE)
+                    LASSO.res[[idx]] <-  LR
+                }
+            } else {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, TRUE, FALSE)
+                    LASSO.res[[idx]] <-  LR
+                }
             }
         } else {
-            for (idx in 1:length(seeds)) {
-                LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, FALSE)
-                LASSO.res[[idx]] <-  LR
+            if (length(levels(as.factor(group.LASSO))) > 2) {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, TRUE ,TRUE)
+                    LASSO.res[[idx]] <-  LR
+                }
+            } else {
+                for (idx in 1:length(seeds)) {
+                    LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, TRUE ,FALSE)
+                    LASSO.res[[idx]] <-  LR
+                }
             }
         }
     }
-    LASSO.res1 <- Reduce(intersect, lapply(LASSO.res, '[[', 1))
-    LASSO.res1 <- data.frame(LASSO.res1[-1])
-    colnames(LASSO.res1) <- c("LASSO.Var.Select")
-    xlsx::write.xlsx(LASSO.res1, file=paste0(arg.filename,"_LASSO.xlsx"), row.names=FALSE)
-    consensus <- DE.out[DE.out$name %in% LASSO.res1$LASSO.Var.Select,]
+    
+    
+    VarsSelect <- Reduce(intersect, lapply(LASSO.res, '[[', 1))
+    
+    if (length(VarsSelect) < 2) {
+        stop("\n- There is no overlap in 10 elastic net runs. If you ran LASSO (-l was et to 1.0) you can try and relax alpha and perform elastic net instead (0.0 < -l < 1.0). Otherwise you data may have to high of a noise ratio to sample size, LASSO should not be performed.\n")
+    }
+    
+    
+    VarsSelect <- data.frame(VarsSelect[-1])
+    colnames(VarsSelect) <- c("LASSO.Var.Select")
+    xlsx::write.xlsx(VarsSelect, file=paste0(arg.filename,"_LASSO.xlsx"), row.names=FALSE)
+    consensus <- DE.out[DE.out$name %in% VarsSelect$LASSO.Var.Select,]
     xlsx::write.xlsx(consensus, file=paste0(arg.filename,"_DEA_LASSO_Consensus.xlsx"), row.names=FALSE)
     
-    LASSO.res2 <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
-    cat(paste0("Mean cross validation error (cv.glmnet) = ", LASSO.res2,".\n"))
+    
+    LassoRun <- paste0(rep("Run", 10), 1:10)
+    
+
+    
+    CrossValErrormean <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
+    pCVEM <- data.frame(cbind(CrossValErrormean, LassoRun))
+    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE)
+    ggsave(paste0(arg.filename, "_CrossValidationPlot.pdf"), plot = pCVEM)
+    
+    
+    if (length(LASSO.res) > 2) {
+        AUCTestDatamean <- round(unlist(lapply(LASSO.res, '[[', 3)), digits = 4)
+        pATDM <- data.frame(cbind(AUCTestDatamean, LassoRun))
+        pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE)
+        ggsave(paste0(arg.filename, "_AUCTestDataClassification.pdf"), plot = pATDM)
+    }
 }
 
 
@@ -1309,8 +1380,14 @@ if (arg.WGCNA == TRUE) {
     
     # Extract module color labels
     dynamicColors <- labels2colors(dynamicMods)
-    table(dynamicColors)
     
+    # Change colors to viridis
+    my.cols <- data.frame(dynamicColors)
+    colnames(my.cols) <- c("oldcols")
+    colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), direction = -1, end = 0.9))
+    colnames(colortransform) <- c("oldcols", "colortransform")
+    dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
+
     # Eigen features in each module
     MEList <- moduleEigengenes(data.WGCNA, colors = dynamicColors)
     MEs <- MEList$eigengenes
@@ -1325,7 +1402,7 @@ if (arg.WGCNA == TRUE) {
     mergedMEs <- merge$newMEs
     
     # Plot merged modules
-    pdf(paste0(arg.filename,"_WGCNA_ModuleTree.pdf"))
+    pdf(paste0(arg.filename,"_WGCNA_ModuleTree.pdf"), height = 10, width = 12)
     plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),c("Dynamic Tree Cut", "Merged dynamic"),dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
     dev.off()
     

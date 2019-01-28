@@ -332,28 +332,62 @@ DA_all_contrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.
 
 
 
-LASSO_feature <- function(my.seed, my.data, my.group, my.multinorm=TRUE) {
+LASSO_feature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FALSE, my.multinorm=TRUE) {
+    
+    if (my.validation == TRUE) {
+        
+        ll <- list()
+        llev <- levels(as.factor(my.group))
+        
+        for (idx in 1:length(llev)) {
+            pos <- which(my.group == as.character(llev[idx]))
+            ll[[idx]] <- pos
+        }
+        
+        my.samp <- unlist(lapply(ll, function(x) sample(x, ceiling((length(x)/4)))))
+        
+        testD <- my.data[,my.samp]
+        testG <- as.integer(my.group[my.samp])
+        
+        my.data <- my.data[,-my.samp]
+        my.group <- as.integer(my.group[-my.samp])
+    }
+    
     if(my.multinorm == TRUE) {
         set.seed(my.seed)
-        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10)
+        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10, alpha = my.LAorEN)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
         my.ma <- as(my.coef$`1`, "matrix")
         meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
-        rm(my.fit)
-        rm(my.coef)
-    }
-    else {
+    } else {
         set.seed(my.seed)
-        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family = "binomial", type.measure = "class", nfolds = 10)
+        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family = "binomial", type.measure = "class", nfolds = 10, alpha = my.LAorEN)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
         my.ma <- as(my.coef, "matrix")
         meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
-        rm(my.fit)
-        rm(my.coef)
     }
+    if (exists("testD")) {
+        my.roc <- roc(testG, as.numeric(predict(my.fit, t(testD), type = "response", s =my.fit$lambda.1se, alpha = my.LAorEN)))
+        my.roc <- as.numeric(sub(".*: ", "", my.roc$auc))
+    }
+    
     my.ma <- names(my.ma[my.ma[,1] != 0, ])
-    return(list(my.ma, meanerror))
+    
+    if (exists("testD")) {
+        return(list(my.ma, meanerror, my.roc))
+    } else {
+        return(list(my.ma, meanerror))
+    }
+    
+    rm(my.fit)
+    rm(my.coef)
 }
+
+
+
+
+
+
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION FOR GETTING OUTPUT AS EXCEL FILE
