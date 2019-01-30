@@ -273,7 +273,7 @@ if (is.null(opt$plotmds)){
 # LogFC
 if (is.null(opt$logFC)){
    cat("\n- No log fold change cut-off for significant hits has been chosen. For log2 transformed data a logFC cut-off of +/- 1 is most commenly used. For for untransformed data a fold change of +/- 2 is equivalent.\n")
-   arg.logFC <- 0
+   arg.logFC <- 1
 } else {
     arg.logFC <- opt$logFC
 }
@@ -289,10 +289,7 @@ if (is.null(opt$FDR)){
 
 # Colors
 if (is.null(opt$colors)){
-    arg.colors <- as.vector(viridis(length(levels(as.factor(as.character(arg.metadata$group)))), begin = 0.2, end = 0.8, option="cividis"))
-    #if (length(levels(as.factor(as.character(arg.metadata$group)))) < 3) {
-    #    arg.colors <- arg.colors[1:2]
-    #}
+    arg.colors <- as.vector(viridis(length(levels(arg.group)), begin = 0.2, end = 0.8, option="cividis"))
 } else {
     arg.colors <- as.list(strsplit(opt$colors, ",")[[1]])
 }
@@ -406,10 +403,15 @@ if(arg.transform[1] %in% c("log2", "log10", "logit")) {
     } else {
         if (TRUE %in% hasZeroD) {
             arg.data.original <- arg.data
-            arg.data <- ReplaceZero(arg.data)
+            arg.data <- ReplaceZero(arg.data, arg.group)
         }
     }
 }
+
+
+save(arg.data, file = "arg_data.Rdata")
+
+
 
 
 
@@ -424,7 +426,7 @@ if(!is.null(arg.serumdata) & arg.transform[2] %in% c("log2", "log10", "logit")) 
     } else {
         if (TRUE %in% hasZeroS) {
             arg.serumdata.original <- arg.serumdata
-            arg.serumdata <- ReplaceZero(arg.serumdata)
+            arg.serumdata <- ReplaceZero(arg.serumdata, arg.group)
         }
     }
 }
@@ -492,6 +494,11 @@ if (arg.variant[1] == "seq") {
 } else {
     stop("\n- Option -v is mandatory and specifies data type (variant). Options are; array, seq, ms or other. See user manual for specifics.\n")
 }
+
+
+
+save(arg.data, file = "arg_dataTrans.Rdata")
+
 
 
 
@@ -575,7 +582,6 @@ if (arg.databatch == TRUE){
 
 
 
-
 if (arg.serumbatch == TRUE){
     if (length(arg.sbatch) > 0) {
         arg.design <- model.matrix(~arg.group)
@@ -651,24 +657,21 @@ if (arg.datacheck == TRUE & !is.null(arg.serumdata)) {
                                                                         ### PRELIMINARY MDS PLOT ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+MDScolors <- gsub(pattern = "FF", replacement = "", x = arg.colors)
+
 
 
 if (arg.plotmds == TRUE && arg.databatch == TRUE){
-    mdsplot <- myMDSplot(data.batch, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
+    mdsplot <- myMDSplot(data.batch, arg.group, "", MDScolors)
     ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
-    mdsplot <- myMDSplot(arg.data, arg.group, "", arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
+    mdsplot <- myMDSplot(arg.data, arg.group, "", MDScolors)
     ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot)
     
 } else {
     cat("\n- No preliminary plot requested.\n")
 }
-
-
-
-
-
 
 
 
@@ -806,15 +809,10 @@ if (!is.null(arg.lasso)) {
     if(arg.lasso <= 0.0 || arg.lasso > 1.0 ) {
         stop("\n- The input for flag -l denotes hyperparameter alpha. This value must be set to 0.0 < x < 1.0 for Elastic Net (0.5 is default) or to 1.0 for LASSO regression. Re-run the pipeline again with correct -l input or remove -l all together.\n")
     }
-    lasso.list <- list()
-    lasso.lev <- levels(arg.group)
-    for (idx in 1:length(lasso.lev)) {
-        pos <- which(arg.group == as.character(lasso.lev[idx]))
-        lasso.list[[idx]] <- pos
-    }
-    names(lasso.list) <- lasso.lev
-    len <- unlist(lapply(lasso.list, function(x) length(x)))
     
+    
+    # Length of each group
+    len <- as.numeric(table(arg.group))
     test.train <- unique(len >= 50)
     too.few <- unique(len < 10)
     
@@ -825,9 +823,12 @@ if (!is.null(arg.lasso)) {
     }
     
     
+    
     group.LASSO <- arg.group
     seeds <- sample(1:1000, 10)
     LASSO.res <- list()
+    
+    
     
     if(FALSE %in% test.train) {
         if (arg.databatch == TRUE) {
@@ -904,14 +905,14 @@ if (!is.null(arg.lasso)) {
     
     CrossValErrormean <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
     pCVEM <- data.frame(cbind(CrossValErrormean, LassoRun))
-    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE)
+    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis" ) + theme(legend.position="none")
     ggsave(paste0(arg.filename, "_CrossValidationPlot.pdf"), plot = pCVEM)
     
     
-    if (length(LASSO.res) > 2) {
+    if (length(LASSO.res[[1]]) > 2) {
         AUCTestDatamean <- round(unlist(lapply(LASSO.res, '[[', 3)), digits = 4)
         pATDM <- data.frame(cbind(AUCTestDatamean, LassoRun))
-        pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE)
+        pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis") + theme(legend.position="none")
         ggsave(paste0(arg.filename, "_AUCTestDataClassification.pdf"), plot = pATDM)
     }
 }
@@ -959,8 +960,16 @@ if (!is.null(arg.serumdata)) {
         }
     }
     
+    
+    print(res.DE.names)
+    
+    retainedDE <- intersect(res.DE.names, rownames(serum.corr))
+    
+    print(retainedDE)
+   
+   
     # Perform correction analysis and generate overall correlation plot
-    res.corr <- my_correlation(data.corr, serum.corr, res.DE.names, arg.filename)
+    res.corr <- my_correlation(data.corr, serum.corr, retainedDE, arg.filename)
     
     
     # print out significant hits in Excel
@@ -1384,7 +1393,7 @@ if (arg.WGCNA == TRUE) {
     # Change colors to viridis
     my.cols <- data.frame(dynamicColors)
     colnames(my.cols) <- c("oldcols")
-    colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), direction = -1, end = 0.9))
+    colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), begin = 0.2, end = 0.8, option="cividis"))
     colnames(colortransform) <- c("oldcols", "colortransform")
     dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
 
