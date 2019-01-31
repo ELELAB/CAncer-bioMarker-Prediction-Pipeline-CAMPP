@@ -339,9 +339,9 @@ if (is.null(opt$WGCNA)){
 
 # CutoffWGCNA
 if (is.null(opt$cutoffWGCNA)){
-    arg.cutoffWGCNA <- 25
+    arg.cutoffWGCNA <- c(10, 25, 25)
 } else {
-    arg.cutoffWGCNA <- opt$cutoffWGCNA
+    arg.cutoffWGCNA <- as.numeric(unlist(strsplit(opt$cutoffWGCNA, split=",")))
 }
 
 
@@ -407,9 +407,6 @@ if(arg.transform[1] %in% c("log2", "log10", "logit")) {
         }
     }
 }
-
-
-save(arg.data, file = "arg_data.Rdata")
 
 
 
@@ -497,7 +494,6 @@ if (arg.variant[1] == "seq") {
 
 
 
-save(arg.data, file = "arg_dataTrans.Rdata")
 
 
 
@@ -626,7 +622,6 @@ if (arg.datacheck == TRUE) {
 
 
 
-
 if (arg.datacheck == TRUE & !is.null(arg.serumdata)) {
     if (arg.serumbatch == TRUE) {
         subset.data <- serum.data.batch[sample(nrow(serum.data.batch), 6),]
@@ -701,6 +696,9 @@ res.DE <- NULL
 
 if (is.null(arg.DElist)){
     
+    dir.create("DEAAResults")
+    setwd("DEAAResults/")
+    
     combinations <- data.frame(t(combn(paste0("arg.group", levels(arg.group)), 2)))
     combinations$contr <- apply(combinations[,colnames(combinations)], 1, paste, collapse = "-")
     
@@ -734,6 +732,7 @@ if (is.null(arg.DElist)){
             DE.out <- excel_output(res.DE, paste0(arg.filename,"_databatch_DE"))
         }
     }
+    setwd("..")
 } else {
     cat("\n- You have provided a custom list of DE/DA features. Differential expression/abundance analysis with limma will be skipped.\n")
 
@@ -822,17 +821,18 @@ if (!is.null(arg.lasso)) {
         stop("\n- LASSO cannot be performed, too few samples per group, minimum is 10!\n")
     }
     
-    
+    dir.create("LASSOResults")
+    setwd("LASSOResults/")
     
     group.LASSO <- arg.group
     seeds <- sample(1:1000, 10)
     LASSO.res <- list()
     
     
-    
     if(FALSE %in% test.train) {
         if (arg.databatch == TRUE) {
             if (length(levels(as.factor(group.LASSO))) > 2) {
+                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, FALSE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -845,6 +845,7 @@ if (!is.null(arg.lasso)) {
             }
         } else {
             if (length(levels(as.factor(group.LASSO))) > 2) {
+                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, FALSE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -859,6 +860,7 @@ if (!is.null(arg.lasso)) {
     } else {
         if (arg.databatch == TRUE) {
             if (length(levels(as.factor(group.LASSO))) > 2) {
+                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, TRUE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -871,6 +873,7 @@ if (!is.null(arg.lasso)) {
             }
         } else {
             if (length(levels(as.factor(group.LASSO))) > 2) {
+                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, TRUE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -896,12 +899,16 @@ if (!is.null(arg.lasso)) {
     colnames(VarsSelect) <- c("LASSO.Var.Select")
     xlsx::write.xlsx(VarsSelect, file=paste0(arg.filename,"_LASSO.xlsx"), row.names=FALSE)
     consensus <- DE.out[DE.out$name %in% VarsSelect$LASSO.Var.Select,]
-    xlsx::write.xlsx(consensus, file=paste0(arg.filename,"_DEA_LASSO_Consensus.xlsx"), row.names=FALSE)
+    
+    if (nrow(consensus) > 0) {
+        xlsx::write.xlsx(consensus, file=paste0(arg.filename,"_DEA_LASSO_Consensus.xlsx"), row.names=FALSE)
+    } else {
+        print("There is no consensus between LASSO regression and DEA/DAA.")
+    }
     
     
     LassoRun <- paste0(rep("Run", 10), 1:10)
     
-
     
     CrossValErrormean <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
     pCVEM <- data.frame(cbind(CrossValErrormean, LassoRun))
@@ -915,6 +922,7 @@ if (!is.null(arg.lasso)) {
         pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis") + theme(legend.position="none")
         ggsave(paste0(arg.filename, "_AUCTestDataClassification.pdf"), plot = pATDM)
     }
+    setwd("..")
 }
 
 
@@ -941,35 +949,28 @@ if (!is.null(arg.lasso)) {
 # Data (TIF) and Serumdata correlations
 
 if (!is.null(arg.serumdata)) {
-    # Extract sample ID IF sample has matched serum.
-    arg.samples <- arg.metadata[arg.metadata$serum == 1,]$ids
+    
+    dir.create("CorrelationResults")
+    setwd("CorrelationResults/")
+    
+    retainedDEvar <- intersect(res.DE.names, rownames(arg.serumdata))
+    retainedSamp <- intersect(colnames(arg.data), colnames(arg.serumdata))
+    
     
     if (arg.databatch == TRUE) {
-        data.corr <- data.batch[,colnames(data.batch) %in% arg.samples]
-        if (arg.serumbatch == TRUE) {
-            serum.corr <- serum.data.batch
-        }  else {
-            serum.corr <- arg.serumdata
-        }
+        data.corr <- data.batch[rownames(data.batch) %in% retainedDEvar, colnames(data.batch) %in% retainedSamp]
     } else {
-        data.corr <- arg.data[,colnames(arg.data) %in% arg.samples]
-        if (arg.serumbatch == TRUE) {
-            serum.corr <- serum.data.batch
-        }  else {
-            serum.corr <- arg.serumdata
-        }
+        data.corr <- arg.data[rownames(arg.data) %in% retainedDEvar, colnames(arg.data) %in% retainedSamp]
     }
     
+    if (arg.serumbatch == TRUE) {
+        serum.corr <- serum.data.batch[rownames(serum.data.batch) %in% retainedDEvar, colnames(serum.data.batch) %in% retainedSamp]
+    } else {
+        serum.corr <- arg.serumdata[rownames(arg.serumdata) %in% retainedDEvar, colnames(arg.serumdata) %in% retainedSamp]
+    }
     
-    print(res.DE.names)
-    
-    retainedDE <- intersect(res.DE.names, rownames(serum.corr))
-    
-    print(retainedDE)
-   
-   
     # Perform correction analysis and generate overall correlation plot
-    res.corr <- my_correlation(data.corr, serum.corr, retainedDE, arg.filename)
+    res.corr <- my_correlation(data.corr, serum.corr, arg.filename)
     
     
     # print out significant hits in Excel
@@ -978,13 +979,13 @@ if (!is.null(arg.serumdata)) {
 
 
     # Individual correlation plots
-    #corr.features <- as.character(res.corr[res.corr$sig.corr == "yes",]$name)
     corr.features <- as.character(res.corr[which(res.corr$sig.corr == "yes"),]$name)
     if (length(corr.features) > 1) {
         my_correlation_plots(data.corr, serum.corr, corr.features, arg.filename)
     } else {
         cat("\n- No significant correlations, no plotting.\n")
     }
+    setwd("..")
 }
 
 
@@ -1014,6 +1015,9 @@ if (!is.null(arg.serumdata)) {
 
 
 if (arg.survival == TRUE){
+   
+   dir.create("SurvivalResults")
+   setwd("SurvivalResults/")
    
    # Setting up dataset for survival analysis, matching TIF and serum samples either batch or no batch. Only DA/DE featrues are used.
    metadata.surv <- arg.metadata[which(arg.metadata$survival == 1),]
@@ -1315,12 +1319,11 @@ if (arg.survival == TRUE){
    # Setting up data and writing out excel sheet with results and making HR stemplot
    survival.data <- my_survival(survival.results, arg.filename, arg.survplot)
    xlsx::write.xlsx(survival.data, file=paste0(arg.filename,"_survival.xlsx"), row.names=TRUE)
-   
-
+   setwd("..")
 }
 
 
-sink()
+
 
 
 
@@ -1340,6 +1343,9 @@ sink()
 
 if (arg.WGCNA == TRUE) {
     
+    dir.create("WGCNAResults")
+    setwd("WGCNAResults/")
+    
     if (arg.databatch == TRUE){
         data.WGCNA <- t(data.batch)
     } else {
@@ -1350,88 +1356,13 @@ if (arg.WGCNA == TRUE) {
     gsg <- goodSamplesGenes(data.WGCNA)
     cat(paste0("- Data set is OK for WGCNA - ", gsg$allOK,".\n"))
     
-    # Plot power estimates of data
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-    powers <-  c(c(1:10), seq(from = 12, to=20, by=2));
-    sft <- pickSoftThreshold(data.WGCNA, dataIsExpr = TRUE,powerVector = powers,corFnc = cor,corOptions = list(use = 'p'),networkType = "signed")
-    
-    pdf(paste0(arg.filename,"_WGCNA_softpowerplot.pdf"))
-    plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit, signed R^2",type="n")
-    text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],col="red")
-    dev.off()
-    
-    # Set power to best softpower estimate
-    softPower <- sft$powerEstimate
-    softPower
-    
-    # Construct adjecancy and topology matrix
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # Adjacency matrix and Topology Matrix
-    adj <-adjacency(data.WGCNA, power = softPower);
-    
-    TOM <- TOMsimilarity(adj)
-    colnames(TOM) <- colnames(data.WGCNA)
-    rownames(TOM) <- colnames(data.WGCNA)
-    
-    dissTOM <- (1-TOM)
-    
-    # Dendogram
-    geneTree <- hclust(as.dist(dissTOM),method="ward.D2")
-    
-    
-    # Construct Modules
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    minModuleSize <- 10
-    dynamicMods <- cutreeDynamic(dendro = geneTree, distM = dissTOM,deepSplit = 2, pamRespectsDendro = FALSE,minClusterSize = minModuleSize)
-    table(dynamicMods)
-    
-    # Extract module color labels
-    dynamicColors <- labels2colors(dynamicMods)
-    
-    # Change colors to viridis
-    my.cols <- data.frame(dynamicColors)
-    colnames(my.cols) <- c("oldcols")
-    colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), begin = 0.2, end = 0.8, option="cividis"))
-    colnames(colortransform) <- c("oldcols", "colortransform")
-    dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
-
-    # Eigen features in each module
-    MEList <- moduleEigengenes(data.WGCNA, colors = dynamicColors)
-    MEs <- MEList$eigengenes
-    MEDiss <- (1-cor(MEs))
-    
-    # Cluster module eigengenes
-    METree <- hclust(dist(MEDiss), method = "ward.D2")
-
-    MEDissThres <- 0.25
-    merge <- mergeCloseModules(data.WGCNA, dynamicColors, cutHeight = MEDissThres, verbose = 3)
-    mergedColors <- merge$colors
-    mergedMEs <- merge$newMEs
-    
-    # Plot merged modules
-    pdf(paste0(arg.filename,"_WGCNA_ModuleTree.pdf"), height = 10, width = 12)
-    plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),c("Dynamic Tree Cut", "Merged dynamic"),dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
-    dev.off()
-    
-    moduleColors <- mergedColors
-    colorOrder <- c("grey", standardColors(50))
-    moduleLabels <- match(moduleColors, colorOrder)-1
-    
-    # Interconnectivity of features in modules
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    IC <- intramodularConnectivity(adj,  moduleColors)
-    mod.cols <- levels(as.factor(moduleColors))
-    
-    WGCNAres <- ModuleIC(mod.cols, moduleColors, IC, data.WGCNA, arg.cutoffWGCNA, arg.filename)
-    WGCNAres <- do.call("rbind", WGCNAres)
-    rownames(WGCNAres) <- gsub(".*[.]", "", rownames(WGCNAres))
+    WGCNAres <- WGCNAAnalysis(data.WGCNA, arg.cutoffWGCNA ,arg.filename)
     xlsx::write.xlsx(WGCNAres, file=paste0(arg.filename,"_WGCNAres.xlsx"), row.names=TRUE)
+    setwd("..")
 }
 
 
 
 
 
+sink()

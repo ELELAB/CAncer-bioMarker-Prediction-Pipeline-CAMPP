@@ -366,7 +366,7 @@ LASSO_feature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=F
         set.seed(my.seed)
         my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10, alpha = my.LAorEN)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
-        my.ma <- as(my.coef$`1`, "matrix")
+        my.ma <- as(my.coef[[1]], "matrix")
         meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
     } else {
         set.seed(my.seed)
@@ -562,12 +562,12 @@ my_survival_curve <- function(my.data, my.survivaldata, my.index) {
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-my_correlation <- function(d1, d2, my.features, my.filename) {
-    
-    d1 <- d1[rownames(d1) %in% my.features,]
-    d2 <- d2[rownames(d2) %in% my.features,]
+my_correlation <- function(d1, d2, my.filename) {
     
     my.names <- rownames(d1)
+    
+    d1 <- as.matrix(d1)
+    d2 <- as.matrix(d2)
     
     pear_corr <- sapply(1:nrow(d1), function(i) cor(d1[i,], d2[i,], method = "pearson"))
     
@@ -581,7 +581,7 @@ my_correlation <- function(d1, d2, my.features, my.filename) {
     pear_corr_full <- data.frame(my.names, pear_corr, pear_p_val, fdr, log2(1/fdr))
     colnames(pear_corr_full) <- c("name", "cor_coef", "pval", "fdr", "Inverse_Scaled_FDR")
     
-    corr.plot <- ggplot(pear_corr_full, aes(name, cor_coef)) +  geom_point(aes(colour = Inverse_Scaled_FDR), size=7, stroke = 0, shape = 16) + scale_color_viridis(direction = -1) + scale_y_continuous(breaks=number_ticks(10)) + theme_bw() +  theme(panel.grid.major.x = element_blank()) + geom_text(aes(label=name), size=6, hjust = 0.8, vjust=-0.2, color="grey30") + theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text.y = element_text(size=14, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16), legend.title = element_text(size=14)) + xlab("") + ylab("Correlation Coefficient") + geom_hline(yintercept=c(0.0, 0.5, -0.5), color=rep("grey30", 3))
+    corr.plot <- ggplot(pear_corr_full, aes(name, cor_coef)) +  geom_point(aes(colour = Inverse_Scaled_FDR), size=7, stroke = 0, shape = 16) + scale_color_viridis(begin = 0.2, end = 0.8, direction = -1, option="cividis") + scale_y_continuous(breaks=number_ticks(10)) + theme_bw() +  theme(panel.grid.major.x = element_blank()) + geom_text(aes(label=name), size=4, hjust = 0.8, vjust=-0.2, color="grey30") + theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text.y = element_text(size=14, color = "black"), axis.title = element_text(size=16, color = "black"), legend.text = element_text(size=16), legend.title = element_text(size=14)) + xlab("") + ylab("Correlation Coefficient") + geom_hline(yintercept=c(0.0, 0.5, -0.5), color=rep("grey30", 3))
     ggsave(paste0(my.filename, "_corrplot.pdf"), bg = "transparent", width=12, height=6, plot = corr.plot)
     return(pear_corr_full)
 }
@@ -626,7 +626,7 @@ my_correlation_plots <- function(my.data, my.serumdata, my.features, my.filename
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my.n, my.name) {
+ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my.n, my.softPower, my.name) {
     my.modules <- list()
     for (idx in 1:length(vec.of.modulecolors)) {
         moduleC <- colnames(my.ExpData)[which(my.moduleColors == vec.of.modulecolors[[idx]])]
@@ -634,15 +634,106 @@ ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my
         moduleCIC <- moduleCIC[order(moduleCIC$kWithin,decreasing = TRUE), ]
         modTOP <- ceiling((length(moduleC)/100) * my.n)
         modTOP <- moduleCIC[1:modTOP,]
-        modTOP$Module <- rep(vec.of.modulecolors[[idx]],nrow(modTOP))
+        modTOP$Module <- paste0("module", rep(vec.of.modulecolors[[idx]],nrow(modTOP)))
         my.modules[[idx]] <- modTOP
-        pdf(paste0(my.name, "_", vec.of.modulecolors[[idx]],"_moduleHM.pdf"))
-        plotNetworkHeatmap(my.ExpData, moduleC, weights = NULL, useTOM = TRUE, power = softPower, networkType = "unsigned", main = "Heatmap of the network")
+        pdf(paste0(my.name, "_module", vec.of.modulecolors[[idx]], "_moduleHM.pdf"), height=14, width=14)
+        plotNetworkHeatmap(my.ExpData, moduleC, weights = NULL, useTOM = TRUE, power = my.softPower, networkType = "unsigned", main = "Heatmap of the network")
         dev.off()
     }
     names(my.modules) <- vec.of.modulecolors
     return(my.modules)
 }
+
+
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# FUNCTION FOR WGCNA
+# Takes as arguments;
+# my.data = dataframe with expression/abundance values
+# my.thresholds = a vector of length two. First argument specifies the minimum size of a module and the second argument specifies the dissimilarity cutoff for merging of modules.
+# my.name = name of output plot(s)
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
+    powers <-  c(c(1:10), seq(from = 12, to=20, by=2));
+    sft <- pickSoftThreshold(my.data, dataIsExpr = TRUE,powerVector = powers,corFnc = cor,corOptions = list(use = 'p'),networkType = "signed")
+    
+    pdf(paste0(my.name,"_WGCNA_softpowerplot.pdf"))
+    plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit, signed R^2",type="n")
+    text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],col="red")
+    dev.off()
+    
+    # Set power to best softpower estimate
+    softPower <- sft$powerEstimate
+    
+    # Construct adjecancy and topology matrix
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # Adjacency matrix and Topology Matrix
+    adj <-adjacency(my.data, power = softPower);
+    
+    TOM <- TOMsimilarity(adj)
+    colnames(TOM) <- colnames(my.data)
+    rownames(TOM) <- colnames(my.data)
+    
+    dissTOM <- (1-TOM)
+    
+    # Dendogram
+    geneTree <- hclust(as.dist(dissTOM),method="ward.D2")
+    
+    
+    # Construct Modules
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    dynamicMods <- cutreeDynamic(dendro = geneTree, distM = dissTOM,deepSplit = 2, pamRespectsDendro = FALSE, minClusterSize = my.thresholds[1])
+    
+    
+    # Extract module color labels
+    dynamicColors <- labels2colors(dynamicMods)
+    
+    # Change colors to viridis
+    my.cols <- data.frame(dynamicColors)
+    colnames(my.cols) <- c("oldcols")
+    colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), begin = 0.2, end = 0.8, option="cividis"))
+    colnames(colortransform) <- c("oldcols", "colortransform")
+    dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
+    
+    # Eigen features in each module
+    MEList <- moduleEigengenes(my.data, colors = dynamicColors)
+    MEs <- MEList$eigengenes
+    MEDiss <- (1-cor(MEs))
+    
+    # Cluster module eigengenes
+    METree <- hclust(dist(MEDiss), method = "ward.D2")
+    
+    merge <- mergeCloseModules(my.data, dynamicColors, cutHeight = my.thresholds[2]/100, verbose = 3)
+    mergedColors <- merge$colors
+    mergedMEs <- merge$newMEs
+    
+    # Plot merged modules
+    pdf(paste0(my.name,"_WGCNA_ModuleTree.pdf"), height = 10, width = 12)
+    plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),c("Dynamic Tree Cut", "Merged dynamic"),dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
+    dev.off()
+    
+    moduleColors <- mergedColors
+    colorOrder <- c("grey", standardColors(50))
+    moduleLabels <- match(moduleColors, colorOrder)-1
+    
+    # Interconnectivity of features in modules
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    IC <- intramodularConnectivity(adj,  moduleColors)
+    mod.cols <- levels(as.factor(moduleColors))
+    
+    WGCNAres <- ModuleIC(mod.cols, moduleColors, IC, my.data, my.thresholds[3], softPower, my.name)
+    WGCNAres <- do.call("rbind", WGCNAres)
+    rownames(WGCNAres) <- gsub(".*[.]", "", rownames(WGCNAres))
+    return(WGCNAres)
+}
+
+
+
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
