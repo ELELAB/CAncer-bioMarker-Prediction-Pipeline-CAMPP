@@ -30,9 +30,10 @@ spec = matrix(c(
   "variant", "v", 1, "character",
   "data", "d", 1, "character",
   "metadata", "m", 1, "character",
+  "groups", "g", 1, "character",
   "datacheck", "k", 2, "logical",
   "serumdata", "s", 2, "character",
-  "survival", "u", 2, "logical",
+  "survival", "u", 2, "character",
   "survplot", "q", 2, "numeric",
   "transform", "t", 2, "character",
   "standardize", "z", 2, "character",
@@ -60,7 +61,7 @@ opt = getopt(spec)
 
 # Help
 if(!is.null(opt$help)) {
-    cat("\nFlags:\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If serum data is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n\n-s --serumdata: file (xlsx or txt) with serum expression values with the same order and as the count matrix (option -d).\n\n-u --survival: survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If serum data is provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If serum data is provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n\n-n --filename: Name of result files from analysis.\n\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n\n-r --FDR: Alpha level for significance.\n\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-i --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
+    cat("\nFlags:\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If serum data is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you want to perform correlation analysis a column named 'serum' must be included in the metadata specifying (in a binary way) which samples have a matched serum samples (1) and which that do not (0). N.B. if paired samples are used the column 'serum' should only have the value 1 for those samples (either tumours or normals, A or B ect.) you choose to test for - not both.\n(III) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your survival analysis these should be included in the metadata sheet as a column(s).\n\n-s --serumdata: file (xlsx or txt) with serum expression values with the same order and as the count matrix (option -d).\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DA, LASSO, EN or Consensus. Survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If serum data is provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If serum data is provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n\n-e --serumbatch: TRUE or FALSE specifies if you want to correct for experimental serum sample batches. Batch information should be included in the metadata in a column named 'sbatch'.\n\n-n --filename: Name of result files from analysis.\n\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n\n-r --FDR: Alpha level for significance.\n\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-p --survcovar: Covariates to include in survival analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-i --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
     
     stop("\n- Argument -h (help) selected, exiting script.")
 }
@@ -91,7 +92,7 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "sva", "edgeR", "glmnet", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC")
+list.of.packages <- c("limma", "sva", "edgeR", "glmnet", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram")
 
 lapply(list.of.packages, library, character.only=T)
 
@@ -186,19 +187,34 @@ if (is.null(opt$metadata)){
     }
     rm(file)
     
+    
+    # ids and groups
+    if (is.null(opt$groups)){
+        stop("You must specify as minimum two column from the metadata file; one with sample ids and one with groups to contrast, use the flag '-g'")
+    } else {
+        arg.groups <- unlist(strsplit(opt$groups, split=","))
+        if (length(arg.groups) < 2) {
+            stop("You must specify as minimum two column from the metadata file; one with sample ids and one with groups to contrast, use the flag '-g'")
+        }
+    }
+    
+    # Make ids
+    ids <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[1]])))
+    arg.metadata$ids <- as.character(eval(ids))
+    
     # Match data and metadata
     arg.metadata <- arg.metadata[arg.metadata$ids %in% colnames(arg.data),]
-
-    # Vector with group and batch for DE and MDS
-    try(arg.group <- as.factor(as.character(arg.metadata$group)))
-    if (length(arg.group)<1) {
-        stop("\n- Column 'group' is missing from the metadata. This column is mandatory, errors will arise. See -h for help.\n")
-    }
+    
+    # Make groups and batches
+    acall <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[2]])))
+    arg.group <- as.factor(as.character(eval(acall)))
+    
     try(arg.batch <- as.factor(as.character(arg.metadata$batch)))
-    try(arg.sbatch <- as.factor(as.character(arg.metadata$sbatch)))
+    
+    if(!is.null(arg.serumdata)) {
+        try(arg.sbatch <- as.factor(as.character(arg.metadata$sbatch)))
+    }
 }
-
-
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -297,7 +313,7 @@ if (is.null(opt$colors)){
 
 # Filename
 if (is.null(opt$filename)){
-    arg.filename <- "my_results"
+    arg.filename <- "Results"
 } else {
     arg.filename <- opt$filename
 }
@@ -348,7 +364,7 @@ if (is.null(opt$cutoffWGCNA)){
 
 # Survival Analysis
 if (is.null(opt$survival)){
-    arg.survival <- FALSE
+    arg.survival <- NULL
 } else {
     arg.survival <- opt$survival
 }
@@ -431,8 +447,6 @@ if(!is.null(arg.serumdata) & arg.transform[2] %in% c("log2", "log10", "logit")) 
 
 
 
-
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -460,7 +474,7 @@ if (arg.variant[1] == "seq") {
     arg.data <- arg.data[keep,,keep.lib.sizes=FALSE]
     arg.data <- calcNormFactors(arg.data, method = "TMM")
     arg.data <- voom(arg.data, design, plot=FALSE)
-    arg.data <- arg.data$E
+    arg.data <- data.frame(arg.data$E)
     cat("\n-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.\n")
     
 } else if (arg.variant[1] %in% c("array", "ms", "other")) {
@@ -483,7 +497,7 @@ if (arg.variant[1] == "seq") {
         arg.data <- arg.data - rowmed
         cat(paste0("\n-v = array and -z = median. Data will be median centered.", NB, "\n"))
     } else if (!(arg.standardize[1] %in% c("mean", "median")) & arg.variant[1] == "array") {
-        arg.data <- normalizeQuantiles(arg.data)
+        arg.data <- normalizeBetweenArrays(arg.data, method="quantile")
         cat(paste0("\n-v = array. Data will be normalized on the quantiles.",NB, "\n"))
     } else {
         cat("\n- No standardization requested. If argument -v is 'array', data will be normalized on quantile (NormalizeBetweenArrays), otherwise no normalization will be performed.\n")
@@ -513,7 +527,7 @@ if (!is.null(arg.serumdata)) {
         arg.serumdata <- arg.serumdata[keep,,keep.lib.sizes=FALSE]
         arg.serumdata <- calcNormFactors(arg.serumdata, method = "TMM")
         arg.serumdata <- voom(arg.serumdata, design, plot=FALSE)
-        arg.serumdata <- arg.serumdata$E
+        arg.serumdata <- data.frame(arg.serumdata$E)
         cat("\n-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.\n")
         
     } else if (arg.variant[2] %in% c("array", "ms", "other")) {
@@ -536,7 +550,7 @@ if (!is.null(arg.serumdata)) {
             arg.serumdata <- arg.serumdata - rowmed
             cat(paste0("\n-v = array and -z = median. Data will be median centered.", NB, "\n"))
         } else if (!(arg.standardize[2] %in% c("mean", "median")) & arg.variant[2] == "array") {
-            arg.serumdata <- normalizeQuantiles(arg.serumdata)
+            arg.serumdata <- normalizeBetweenArrays(arg.serumdata, method="quantile")
             cat(paste0("\n-v = array. Data will be normalized on the quantiles.",NB, "\n"))
         } else {
             cat("\n- No standardization requested. If argument -v is 'array', data will be normalized on quantile (NormalizeBetweenArrays), otherwise no normalization will be performed.\n")
@@ -559,7 +573,6 @@ if (!is.null(arg.serumdata)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                                         ### BATCH CORRECTION ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 
 
@@ -592,8 +605,6 @@ if (arg.serumbatch == TRUE){
 
 
 
-
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -607,9 +618,9 @@ if (arg.serumbatch == TRUE){
 
 if (arg.datacheck == TRUE) {
     if (arg.databatch == TRUE) {
-        subset.data <- data.batch[sample(nrow(data.batch), 6),]
+        subset.data <- data.batch[sample(nrow(data.batch), 10),]
     } else {
-        subset.data <- arg.data[sample(nrow(arg.data), 6),]
+        subset.data <- arg.data[sample(nrow(arg.data), 10),]
     }
     
     list.of.dists <- fit_distributions(subset.data)
@@ -624,9 +635,9 @@ if (arg.datacheck == TRUE) {
 
 if (arg.datacheck == TRUE & !is.null(arg.serumdata)) {
     if (arg.serumbatch == TRUE) {
-        subset.data <- serum.data.batch[sample(nrow(serum.data.batch), 6),]
+        subset.data <- serum.data.batch[sample(nrow(serum.data.batch), 10),]
     } else {
-        subset.data <- arg.serumdata[sample(nrow(arg.serumdata), 6),]
+        subset.data <- arg.serumdata[sample(nrow(arg.serumdata), 10),]
     }
     
     list.of.dists <- fit_distributions(subset.data)
@@ -686,8 +697,6 @@ if (arg.plotmds == TRUE && arg.databatch == TRUE){
 
 
 
-
-
 # Differential Expression Analysis with Limma
 
 
@@ -730,6 +739,8 @@ if (is.null(arg.DElist)){
             
             # Write results out as excel file
             DE.out <- excel_output(res.DE, paste0(arg.filename,"_databatch_DE"))
+        } else {
+            stop("Metadata is missing the column batch, with batch-correction specified as true. Please modify metadata file OR re-run analysis without batch-correction.")
         }
     }
     setwd("..")
@@ -812,8 +823,8 @@ if (!is.null(arg.lasso)) {
     
     # Length of each group
     len <- as.numeric(table(arg.group))
-    test.train <- unique(len >= 50)
-    too.few <- unique(len < 10)
+    test.train <- unique(len >= 19)
+    too.few <- unique(len < 9)
     
     
     # Stop Lasso if too few samples
@@ -828,11 +839,11 @@ if (!is.null(arg.lasso)) {
     seeds <- sample(1:1000, 10)
     LASSO.res <- list()
     
+    print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
     
     if(FALSE %in% test.train) {
         if (arg.databatch == TRUE) {
             if (length(levels(as.factor(group.LASSO))) > 2) {
-                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, FALSE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -845,7 +856,6 @@ if (!is.null(arg.lasso)) {
             }
         } else {
             if (length(levels(as.factor(group.LASSO))) > 2) {
-                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, FALSE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -860,7 +870,6 @@ if (!is.null(arg.lasso)) {
     } else {
         if (arg.databatch == TRUE) {
             if (length(levels(as.factor(group.LASSO))) > 2) {
-                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], data.batch, group.LASSO, arg.lasso, TRUE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -873,7 +882,6 @@ if (!is.null(arg.lasso)) {
             }
         } else {
             if (length(levels(as.factor(group.LASSO))) > 2) {
-                print("Cross-validation for grouped multinomial LASSO is running with 10 random seeds, this will take some minutes...")
                 for (idx in 1:length(seeds)) {
                     LR <- LASSO_feature(seeds[[idx]], arg.data, group.LASSO, arg.lasso, TRUE ,TRUE)
                     LASSO.res[[idx]] <-  LR
@@ -902,6 +910,10 @@ if (!is.null(arg.lasso)) {
     
     if (nrow(consensus) > 0) {
         xlsx::write.xlsx(consensus, file=paste0(arg.filename,"_DEA_LASSO_Consensus.xlsx"), row.names=FALSE)
+        pdf(paste0(arg.filename, "_overlap_DEAA_LASSO_EN.pdf"), height=8, width=12)
+        venn <- venn.diagram(list(A=unique(as.character(DE.out[DE.out$dir =="up",]$name)), B=unique(as.character(DE.out[DE.out$dir =="down",]$name)), C=as.character(VarsSelect$LASSO.Var.Select)), category.names = c("D(EA) Analysis Up", "D(EA) Analysis Down", "LASSO/EN Regression"), filename=NULL, lwd = 0.7, cat.pos=0, sub.cex = 2, cat.cex= 1.5, cex=1.5, fill=viridis(3, begin = 0.2, end = 0.8, option="cividis"))
+        grid.draw(venn)
+        dev.off()
     } else {
         print("There is no consensus between LASSO regression and DEA/DAA.")
     }
@@ -912,14 +924,15 @@ if (!is.null(arg.lasso)) {
     
     CrossValErrormean <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
     pCVEM <- data.frame(cbind(CrossValErrormean, LassoRun))
-    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis" ) + theme(legend.position="none")
+    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis" ) + theme(legend.position="none") + theme(axis.text = element_text(size=14), axis.title = element_text(size=16))
     ggsave(paste0(arg.filename, "_CrossValidationPlot.pdf"), plot = pCVEM)
     
     
     if (length(LASSO.res[[1]]) > 2) {
         AUCTestDatamean <- round(unlist(lapply(LASSO.res, '[[', 3)), digits = 4)
         pATDM <- data.frame(cbind(AUCTestDatamean, LassoRun))
-        pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis") + theme(legend.position="none")
+        save(pATDM, file="pATDM")
+        pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=AUCTestDatamean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis") + theme(legend.position="none") + theme(axis.text = element_text(size=14), axis.title = element_text(size=16))
         ggsave(paste0(arg.filename, "_AUCTestDataClassification.pdf"), plot = pATDM)
     }
     setwd("..")
@@ -1014,7 +1027,19 @@ if (!is.null(arg.serumdata)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-if (arg.survival == TRUE){
+if (!is.null(arg.survival)) {
+    
+    must.be.type <- c("EN", "LASSO", "DA", "Consensus")
+    must.contain <- c("survival", "age", "outcome", "outcome.time")
+    
+    if ((!arg.survival %in% must.be.type)) {
+        stop("Options for survival analysis variable sets are; DA, LASSO, EN or Consensus. Please re-run pipeline with one of these!")
+    }
+    
+    if (length(intersect(colnames(arg.metadata), must.contain)) < 4) {
+        stop("Survival analysis requested, but one or more columns; 'survival', 'age', 'outcome', 'outcome.time' are missing from metadata file!")
+    }
+   
    
    dir.create("SurvivalResults")
    setwd("SurvivalResults/")
@@ -1028,8 +1053,25 @@ if (arg.survival == TRUE){
    } else {
        data.surv <- arg.data[,colnames(arg.data) %in% arg.samples]
    }
-
-   data.surv <- data.surv[rownames(data.surv) %in% res.DE.names,]
+   
+   
+   
+   
+   if (arg.survival == "DA") {
+       data.surv <- data.surv[rownames(data.surv) %in% res.DE.names,]
+   } else {
+       if(!is.null(arg.lasso)) {
+           if (arg.survival == "Consensus" ) {
+               data.surv <- data.surv[rownames(data.surv) %in% as.character(consensus$name),]
+           } else {
+               data.surv <- data.surv[rownames(data.surv) %in% as.character(VarsSelect$LASSO.Var.Select),]
+           }
+       } else {
+           stop("You have chosen to perform survival analysis from results of LASSO/EN but this analysis has not been performed. Please re-run pipeline with parameter -l (see Manual or help (-h))")
+       }
+   }
+   
+   
    
    
    
@@ -1048,8 +1090,9 @@ if (arg.survival == TRUE){
    features <- rownames(data.surv)
    dd <- datadist(surv_object); options(datadist='dd')
 
+   mylist <- list(features, dd, surv_object)
+  
 
-   
    
                                                                         ### User Specified Covariates ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1095,7 +1138,7 @@ if (arg.survival == TRUE){
            covariate_linearity[[as.character(f)]] <- result
        }
    }
-
+   
 
 
    # Check for liniarity violation:
@@ -1156,9 +1199,11 @@ if (arg.survival == TRUE){
    # Updating covariates with cubic splines.
    if (length(covariate_nonlinear) > 0) {
        cat(paste0("\n- The following continious covariate(s) may be violating the assumption of linearity:  ", covariate_nonlinear,".\nCubic splines will be added.\n"))
-       for (i in 1:length(arg.survcovar.original)) {
-           if (arg.survcovar.original[i] %in% covariate_nonlinear) {
-               arg.survcovar.original[i] <- paste0("rcs(", arg.survcovar.original[i], ")")
+       if(!is.null(arg.survcovar.original)) {
+           for (i in 1:length(arg.survcovar.original)) {
+               if (arg.survcovar.original[i] %in% covariate_nonlinear) {
+                   arg.survcovar.original[i] <- paste0("rcs(", arg.survcovar.original[i], ")")
+               }
            }
        }
    }
@@ -1315,7 +1360,11 @@ if (arg.survival == TRUE){
    
    
    survival.results <- survival.results[-c((length(survival.results)-2):length(survival.results))]
-
+   
+   if(!is.null(arg.survcovar)) {
+       survival.results <- survival.results[-seq((length(survival.results)-length(arg.survcovar)), length(survival.results), 1)]
+   }
+   
    # Setting up data and writing out excel sheet with results and making HR stemplot
    survival.data <- my_survival(survival.results, arg.filename, arg.survplot)
    xlsx::write.xlsx(survival.data, file=paste0(arg.filename,"_survival.xlsx"), row.names=TRUE)

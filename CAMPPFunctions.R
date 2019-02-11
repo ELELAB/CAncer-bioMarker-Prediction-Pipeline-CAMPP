@@ -27,7 +27,7 @@
 ReplaceNAs <- function(my.data) {
     na_row <- apply(my.data, 1, function(x) (sum(is.na(x))/ncol(my.data))*100)
     
-    cat(paste0("\n- The input data the has between " , round(min(na_row), digits = 2), "% - ", round(max(na_row), digits = 2),"%", " missing values per row.\n- Variables (rows) with more than 70% missing values will be removed.\n"))
+    cat(paste0("\n- The input data has between " , round(min(na_row), digits = 2), "% - ", round(max(na_row), digits = 2),"%", " missing values per row.\n- Variables (rows) with more than 70% missing values will be removed.\n"))
     
     
     removeNA <- which(as.vector(na_row) > 70)
@@ -36,7 +36,7 @@ ReplaceNAs <- function(my.data) {
         
     }
     na_col <- apply(my.data, 2, function(x) (sum(is.na(x))/nrow(my.data))*100)
-    cat(paste0("\n- The input data the has between " , round(min(na_col), digits = 2), "% - ", round(max(na_col), digits = 2),"%", " missing values per column.\n- Samples (rows) with more than 80% missing values will be removed. Variables (rows) with more than 50% missing values are imputed using the overall mean per sample.\n... Performing missing value imputation. N.B Uncertainty increases with number of missing values!.\n"))
+    cat(paste0("\n- The input data has between " , round(min(na_col), digits = 2), "% - ", round(max(na_col), digits = 2),"%", " missing values per column.\n- Samples (rows) with more than 80% missing values will be removed. Variables (rows) with more than 50% missing values are imputed using the overall mean per sample.\n... Performing missing value imputation. N.B Uncertainty increases with number of missing values!.\n"))
     
     removeNA <- which(as.vector(na_col) > 80)
     if(length(removeNA) > 0) {
@@ -416,7 +416,10 @@ excel_output <- function(my.list, my.sheetname) {
         my.names <- gsub("1[.](.*)|2[.](.*)", "", rownames(my.list))
         my.names <- gsub("arg.group", "", my.names)
         my.list$comparison <- my.names
-        xlsx::write.xlsx(my.list, file=paste0(my.sheetname,".xlsx"), row.names = FALSE)
+        file <- try(xlsx::write.xlsx(my.list, file=paste0(my.sheetname,".xlsx"), row.names = FALSE), silent=TRUE)
+        if (class(file) == "try-error") {
+            stop("\n- Differential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict? Also, check you metadata file has the correct minimum required columns for analysis.")
+        }
     }
     return(my.list)
 }
