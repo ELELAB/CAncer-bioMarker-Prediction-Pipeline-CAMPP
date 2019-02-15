@@ -633,15 +633,23 @@ ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my
     my.modules <- list()
     for (idx in 1:length(vec.of.modulecolors)) {
         moduleC <- colnames(my.ExpData)[which(my.moduleColors == vec.of.modulecolors[[idx]])]
+        if (length(moduleC) <= 100) {
+            pdf(paste0(my.name, "_module", vec.of.modulecolors[[idx]], "_moduleHM.pdf"), height=14, width=14)
+            plotNetworkHeatmap(my.ExpData, moduleC, weights = NULL, useTOM = TRUE, power = my.softPower, networkType = "unsigned", main = "Heatmap of the network")
+            dev.off()
+        }
         moduleCIC <- my.IC[rownames(my.IC) %in% moduleC, ]
         moduleCIC <- moduleCIC[order(moduleCIC$kWithin,decreasing = TRUE), ]
         modTOP <- ceiling((length(moduleC)/100) * my.n)
         modTOP <- moduleCIC[1:modTOP,]
         modTOP$Module <- paste0("module", rep(vec.of.modulecolors[[idx]],nrow(modTOP)))
+
+        modTOP$gene <- as.factor(rownames(modTOP))
+        bp <- ggplot(modTOP, aes(x=gene, y=kWithin))+ geom_bar(stat="identity", fill=as.character(vec.of.modulecolors[[idx]]), width = 0.4) + theme_minimal() + geom_text(aes(label=gene), color = "grey30", size = 3, angle = 90, hjust = -.05) + theme(axis.text.x=element_blank())
+        ggsave(paste0(my.name, "_module", vec.of.modulecolors[[idx]], "_moduleIC.pdf"), plot = bp, width = 14, height = 10)
+        
         my.modules[[idx]] <- modTOP
-        pdf(paste0(my.name, "_module", vec.of.modulecolors[[idx]], "_moduleHM.pdf"), height=14, width=14)
-        plotNetworkHeatmap(my.ExpData, moduleC, weights = NULL, useTOM = TRUE, power = my.softPower, networkType = "unsigned", main = "Heatmap of the network")
-        dev.off()
+        
     }
     names(my.modules) <- vec.of.modulecolors
     return(my.modules)
@@ -659,8 +667,10 @@ ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
+    
+    enableWGCNAThreads()
     powers <-  c(c(1:10), seq(from = 12, to=20, by=2));
-    sft <- pickSoftThreshold(my.data, dataIsExpr = TRUE,powerVector = powers,corFnc = cor,corOptions = list(use = 'p'),networkType = "signed")
+    sft <- pickSoftThreshold(my.data, dataIsExpr = TRUE,powerVector = powers,corFnc = cor,corOptions = list(use = 'p'),networkType = "unsigned")
     
     pdf(paste0(my.name,"_WGCNA_softpowerplot.pdf"))
     plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit, signed R^2",type="n")
@@ -670,58 +680,117 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
     # Set power to best softpower estimate
     softPower <- sft$powerEstimate
     
+    if (is.na(softPower) | softPower > 9) {
+        if (nrow(my.data) < 20) {
+            softPower <- 9
+        } else if (nrow(my.data) >= 20 & nrow(my.data) < 30) {
+            softPower <- 8
+        } else if (nrow(my.data) >= 30 & nrow(my.data) < 40) {
+            softPower <- 7
+        } else {
+            softPower <- 6
+        }
+    }
+    
     # Construct adjecancy and topology matrix
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     
     # Adjacency matrix and Topology Matrix
-    adj <-adjacency(my.data, power = softPower);
+    adj <-adjacency(my.data, power = softPower)
     
-    TOM <- TOMsimilarity(adj)
-    colnames(TOM) <- colnames(my.data)
-    rownames(TOM) <- colnames(my.data)
+    if(ncol(my.data) > 6000) {
+        
+        cat("Dataset too large for classic WGCNA, running blockwiseModules intead.\n")
+        
+        WGCNAres <- blockwiseModules(
+        my.data,
+        weights = NULL,
+        checkMissingData = TRUE,
+        blocks = NULL,
+        maxBlockSize = 5000,
+        blockSizePenaltyPower = 5,
+        nPreclusteringCenters = as.integer(min(ncol(my.data)/20, 100*ncol(my.data)/5000)),
+        randomSeed = 12345,
+        corType = "pearson",
+        maxPOutliers = 1,
+        quickCor = 0,
+        pearsonFallback = "individual",
+        power = 7,
+        networkType = "unsigned",
+        replaceMissingAdjacencies = FALSE,
+        suppressTOMForZeroAdjacencies = FALSE,
+        TOMType = "unsigned",
+        TOMDenom = "min",
+        getTOMs = NULL,
+        saveTOMs = FALSE,
+        saveTOMFileBase = "blockwiseTOM",
+        deepSplit = 2,
+        detectCutHeight = 0.995,
+        minModuleSize = my.thresholds[1],
+        minBranchEigennodeDissim = mergeCutHeight,
+        tabilityCriterion = c("Individual fraction", "Common fraction"),
+        reassignThreshold = 1e-6,
+        minCoreKME = 0.5,
+        minCoreKMESize = my.thresholds[1]/3,
+        minKMEtoStay = 0.3,
+        mergeCutHeight = 0.25)
+        
+        moduleColors <- WGCNAres$colors
+        
+    } else {
+        TOM <- TOMsimilarity(adj)
+        colnames(TOM) <- colnames(my.data)
+        rownames(TOM) <- colnames(my.data)
+        
+        cat("Done with topology calculations.\n")
+        
+        dissTOM <- (1-TOM)
+        
+        # Dendogram
+        geneTree <- hclust(as.dist(dissTOM),method="ward.D2")
+        
+        cat("Done with hclust.\n")
+        
+        # Construct Modules
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        
+        dynamicMods <- cutreeDynamic(dendro = geneTree, distM = dissTOM,deepSplit = 2, pamRespectsDendro = FALSE, minClusterSize = my.thresholds[1])
+        
+        
+        # Extract module color labels
+        dynamicColors <- labels2colors(dynamicMods)
+        
+        # Change colors to viridis
+        my.cols <- data.frame(dynamicColors)
+        colnames(my.cols) <- c("oldcols")
+        colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), begin = 0.2, end = 0.8, option="cividis"))
+        colnames(colortransform) <- c("oldcols", "colortransform")
+        dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
+        
+        # Eigen features in each module
+        MEList <- moduleEigengenes(my.data, colors = dynamicColors)
+        MEs <- MEList$eigengenes
+        MEDiss <- (1-cor(MEs))
+        
+        # Cluster module eigengenes
+        METree <- hclust(dist(MEDiss), method = "ward.D2")
+        
+        cat("Done with hclust of MEDiss.\n")
+        
+        merge <- mergeCloseModules(my.data, dynamicColors, cutHeight = my.thresholds[2]/100, verbose = 3)
+        mergedColors <- merge$colors
+        mergedMEs <- merge$newMEs
+        
+        # Plot merged modules
+        pdf(paste0(my.name,"_WGCNA_ModuleTree.pdf"), height = 10, width = 12)
+        plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),c("Dynamic Tree Cut", "Merged dynamic"),dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
+        dev.off()
+        
+        moduleColors <- mergedColors
+        colorOrder <- c("grey", standardColors(50))
+        moduleLabels <- match(moduleColors, colorOrder)-1
+    }
     
-    dissTOM <- (1-TOM)
-    
-    # Dendogram
-    geneTree <- hclust(as.dist(dissTOM),method="ward.D2")
-    
-    
-    # Construct Modules
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    dynamicMods <- cutreeDynamic(dendro = geneTree, distM = dissTOM,deepSplit = 2, pamRespectsDendro = FALSE, minClusterSize = my.thresholds[1])
-    
-    
-    # Extract module color labels
-    dynamicColors <- labels2colors(dynamicMods)
-    
-    # Change colors to viridis
-    my.cols <- data.frame(dynamicColors)
-    colnames(my.cols) <- c("oldcols")
-    colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), begin = 0.2, end = 0.8, option="cividis"))
-    colnames(colortransform) <- c("oldcols", "colortransform")
-    dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
-    
-    # Eigen features in each module
-    MEList <- moduleEigengenes(my.data, colors = dynamicColors)
-    MEs <- MEList$eigengenes
-    MEDiss <- (1-cor(MEs))
-    
-    # Cluster module eigengenes
-    METree <- hclust(dist(MEDiss), method = "ward.D2")
-    
-    merge <- mergeCloseModules(my.data, dynamicColors, cutHeight = my.thresholds[2]/100, verbose = 3)
-    mergedColors <- merge$colors
-    mergedMEs <- merge$newMEs
-    
-    # Plot merged modules
-    pdf(paste0(my.name,"_WGCNA_ModuleTree.pdf"), height = 10, width = 12)
-    plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),c("Dynamic Tree Cut", "Merged dynamic"),dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
-    dev.off()
-    
-    moduleColors <- mergedColors
-    colorOrder <- c("grey", standardColors(50))
-    moduleLabels <- match(moduleColors, colorOrder)-1
     
     # Interconnectivity of features in modules
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -729,9 +798,11 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
     IC <- intramodularConnectivity(adj,  moduleColors)
     mod.cols <- levels(as.factor(moduleColors))
     
+    cat("Done with IC.\n")
+    
     WGCNAres <- ModuleIC(mod.cols, moduleColors, IC, my.data, my.thresholds[3], softPower, my.name)
     WGCNAres <- do.call("rbind", WGCNAres)
-    rownames(WGCNAres) <- gsub(".*[.]", "", rownames(WGCNAres))
+    rownames(WGCNAres) <- gsub("^(.*?)[.]", "", rownames(WGCNAres))
     return(WGCNAres)
 }
 
