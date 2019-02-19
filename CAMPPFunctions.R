@@ -10,7 +10,48 @@
 
 													### FUNCTIONS ###
 													
-													
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Reading in files
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+ReadMyFile <- function(my.data, my.expr) {
+    if(my.expr == TRUE) {
+        file <- try(my.data <- openxlsx::read.xlsx(my.data, colNames = TRUE, rowNames = TRUE), silent = TRUE)
+        if (class(file) == "try-error") {
+            cat("\n- sdata file is not .xlsx, trying .txt\n")
+            file <- try(my.data <- read.delim(my.data, header = TRUE, row.names = 1), silent = TRUE)
+            if (class(file) == "try-error") {
+                file <- try(my.data <- read.delim(my.data, header = TRUE, row.names = 1, sep=";"), silent = TRUE)
+                if (class(file) == "try-error") {
+                    stop("\n- sdata file must be .xlsx or .txt\n")
+                }
+            }
+        }
+        my.names <- rownames(my.data)
+        my.data <- as.matrix(as.data.frame(lapply(my.data, as.numeric)))
+        rownames(my.data) <- my.names
+        
+    } else {
+        file <- try(my.data <- openxlsx::read.xlsx(my.data, colNames = TRUE, rowNames = FALSE), silent = TRUE)
+        if (class(file) == "try-error") {
+            cat("\n- Metadata file is not .xlsx, trying .txt\n")
+            file <- try(my.data <- read.delim(my.data, header = TRUE), silent = TRUE)
+            if (class(file) == "try-error") {
+                file <- try(my.data <- read.delim(my.data, header = TRUE, sep =";"), silent = TRUE)
+                if (class(file) == "try-error"){
+                    stop("\n- sdata file must be .xlsx or .txt\n")
+                }
+            }
+        }
+    }
+    rm(file)
+    return(my.data)
+}
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # DATA CHECKS
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -96,6 +137,57 @@ ReplaceZero <- function(my.data, my.group) {
 
 
 
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Fitting Data Distributions:
+# Takes as arguments;
+# my.data = a dataframe of expression/abundance counts, N.B only a subset of variables should be input, not intended for the full expression matrix!
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+NormalizeData <- function(my.variant, my.data, my.group, my.transform, my.standardize, my.data.original = NULL) {
+    if (my.variant == "seq") {
+        if (!is.null(my.data.original)) {
+            my.data <- my.data.original
+        }
+        my.data <- DGEList(counts=my.data)
+        design <- model.matrix(~0+my.group)
+        keep <- filterByExpr(my.data, design)
+        my.data <- my.data[keep,,keep.lib.sizes=FALSE]
+        my.data <- calcNormFactors(my.data, method = "TMM")
+        my.data <- voom(my.data, design, plot=FALSE)
+        my.data <- data.frame(my.data$E)
+        cat("\n-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.\n")
+        
+    } else if (my.variant %in% c("array", "ms", "other")) {
+        if (my.transform == "log2") {
+            my.data <- log2(my.data)
+        } else if (my.transform == "logit") {
+            my.data <- logit(my.data)
+        } else if (my.transform == "log10"){
+            my.data <- log10(my.data)
+        } else {
+            cat("\n-t is not specified for data, log transformation will NOT be performed.\n")
+            my.data <- my.data
+        }
+        if (my.standardize == "mean") {
+            my.data <- scale(my.data, scale = FALSE)
+            cat(paste0("\n-v = array and -z = mean. Data will be mean centered.", NB, "\n"))
+            
+        } else if (my.standardize == "median") {
+            rowmed <- apply(my.data,1,median)
+            my.data <- my.data - rowmed
+            cat(paste0("\n-v = array and -z = median. Data will be median centered.", NB, "\n"))
+        } else if (!(my.standardize %in% c("mean", "median")) & my.variant == "array") {
+            my.data <- normalizeBetweenArrays(my.data, method="quantile")
+            cat(paste0("\n-v = array. Data will be normalized on the quantiles.",NB, "\n"))
+        } else {
+            cat("\n- No standardization requested. If argument -v is 'array', data will be normalized on quantile (NormalizeBetweenArrays), otherwise no normalization will be performed.\n")
+        }
+    } else {
+        stop("\n- Option -v is mandatory and specifies data type (variant). Options are; array, seq, ms or other. See user manual for specifics.\n")
+    }
+    return(my.data)
+}
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -107,7 +199,7 @@ ReplaceZero <- function(my.data, my.group) {
 
 
 
-fit_distributions <- function(my.data) {
+FitDistributions <- function(my.data) {
     discretetype <- unique(as.vector(apply(my.data, 1, function(x) x%%1==0)))
     hasNeg <- unique(as.vector(my.data < 0))
     list.of.lists <- list()
@@ -144,7 +236,7 @@ fit_distributions <- function(my.data) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-plot_distributions <- function(my.data, list.of.lists) {
+PlotDistributions <- function(my.data, list.of.lists) {
     discretetype <- unique(as.vector(apply(my.data, 1, function(x) x%%1==0)))
     hasNeg <- unique(as.vector(my.data < 0))
     for(idx in 1:length(list.of.lists)) {
@@ -175,50 +267,6 @@ plot_distributions <- function(my.data, list.of.lists) {
 }
 
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# BOXPLOTS AND VIOLINPLOTS
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Function for Generating Boxplots:
-# Takes as arguments;
-# my.data = a dataframe of expression/abundance counts
-# my.name = a name for the plot (given as a sting)
-# my.group = a vector of groups
-# my.sn = a vector of numbers indicating number of samples in each group
-# my.cols = a vector of colors for each box (one color for each group)
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-my.boxplots <- function(my.data, my.name, my.group, my.sn, my.cols) {
-    png(paste0(my.name,".png"), height = 800, width = 1200)
-    p1 <- apply(my.data, 1, function(x) ggplot(,aes(my.group, as.numeric(x))) + geom_boxplot(aes(fill = my.group)) + scale_fill_manual(values=my.cols) + theme_bw() + theme(legend.position="none") + geom_text(data=data.frame(), aes(x=names(c(by(as.numeric(x), my.group, median))), y=c(by(as.numeric(x), my.group, median)), label=my.sn), col='black', size=6) + labs(x = "BC Subtypes", y = "feature Abundance"))
-    nc <- ceiling(nrow(my.data)/4)
-    multiplot(plotlist = p1, cols = nc)
-    dev.off()
-}
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Function for Generating Violin Plots:
-# Takes as arguments;
-# my.data = a dataframe of expression/abundance counts
-# my.name = a name for the plot (given as a sting)
-# my.group = a vector of groups
-# my.cols = a vector of colors for each box (one color for each group)
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-my.violin <- function(my.data, my.name, my.group, my.cols) {
-    pdf(paste0(my.name,".pdf"), height = 6, width = 10)
-    p1 <- apply(my.data, 1, function(x) ggplot(,aes(my.group, as.numeric(x))) + geom_violin(aes(fill = my.group), trim = FALSE) + stat_summary(fun.y=median, geom="point", size=2, color="black") + scale_fill_manual(values=my.cols) + theme_bw() + theme(legend.position="none") + theme(axis.text = element_text(size=13, colour = "black"), axis.title = element_text(size=13)) + labs(x = "feature", y = "Log abundance"))
-    nc <- ceiling(nrow(my.data)/2)
-    multiplot(plotlist = p1, cols = nc)
-    dev.off()
-}
-
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -230,7 +278,7 @@ my.violin <- function(my.data, my.name, my.group, my.cols) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-myMDSplot <- function(my.data, my.group, my.labels, my.cols) {
+MDSPlot <- function(my.data, my.group, my.labels, my.cols) {
     d<-dist(t(my.data))
     fit <- cmdscale(d,eig=TRUE, k=2)
     res <-data.frame(names=rownames(fit$points),M1=fit$points[,1],M2=fit$points[,2])
@@ -253,7 +301,7 @@ myMDSplot <- function(my.data, my.group, my.labels, my.cols) {
 
 
 
-DA_feature <- function(my.contrast, my.data, my.design, coLFC, coFDR, my.block=NULL) {
+DAFeature <- function(my.contrast, my.data, my.design, coLFC, coFDR, my.block=NULL) {
     if(is.null(my.block)) {
         fit3 <- eBayes(contrasts.fit(lmFit(my.data, my.design), my.contrast))
     }
@@ -290,8 +338,8 @@ DA_feature <- function(my.contrast, my.data, my.design, coLFC, coFDR, my.block=N
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-DA_feature_apply <- function(my.contrasts, my.data, my.design, coLFC, coFDR, my.block=NULL, my.vector) {
-  my.features.l <- apply(my.contrasts, 2, function(x) DA_feature(x, my.data, my.design, coLFC, coFDR, my.block)) 
+DAFeatureApply <- function(my.contrasts, my.data, my.design, coLFC, coFDR, my.block=NULL, my.vector) {
+  my.features.l <- apply(my.contrasts, 2, function(x) DAFeature(x, my.data, my.design, coLFC, coFDR, my.block))
   if(my.vector == TRUE) {
     my.features <- do.call(rbind, lapply(my.features.l, function(x) do.call(rbind, x)))
     my.features <- unique(do.call(rbind, strsplit(rownames(my.features), "[.]"))[,2])
@@ -315,19 +363,19 @@ DA_feature_apply <- function(my.contrasts, my.data, my.design, coLFC, coFDR, my.
 	# if remove is different from NULL, a vector of indices to remove must be supplied
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-DA_all_contrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.remove=NULL) {
-  if (!is.null(my.remove)) {
-    my.data <- my.data[, -my.remove]
-    my.group <- my.group[-my.remove]
-  }
-    G <- factor(as.character(my.group), levels=my.levels)
-    combinations<- data.frame(t(combn(paste0("G", levels(G)), 2)))
-    combinations$contr <- apply(combinations[,colnames(combinations)], 1, paste, collapse = "-")
-    mod_design <-  model.matrix(~0+G)
-    contrast.matrix <- eval(as.call(c(as.symbol("makeContrasts"),as.list(as.character(combinations$contr)),levels=list(mod_design))))
-    my.DA <- DA_feature_apply(contrast.matrix, my.data, mod_design, my.logFC, my.FDR, NULL, FALSE)
-    return(my.DA)
-  }
+#DAAllContrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.remove=NULL) {
+#  if (!is.null(my.remove)) {
+#    my.data <- my.data[, -my.remove]
+#    my.group <- my.group[-my.remove]
+#  }
+#    G <- factor(as.character(my.group), levels=my.levels)
+#    combinations<- data.frame(t(combn(paste0("G", levels(G)), 2)))
+#    combinations$contr <- apply(combinations[,colnames(combinations)], 1, paste, collapse = "-")
+#    mod_design <-  model.matrix(~0+G)
+#    contrast.matrix <- eval(as.call(c(as.symbol("makeContrasts"),as.list(as.character(combinations$contr)),levels=list(mod_design))))
+#    my.DA <- DA_feature_apply(contrast.matrix, my.data, mod_design, my.logFC, my.FDR, NULL, FALSE)
+#    return(my.DA)
+#  }
 
 
 
@@ -341,7 +389,7 @@ DA_all_contrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.
 
 
 
-LASSO_feature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FALSE, my.multinorm=TRUE) {
+LASSOFeature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FALSE, my.multinorm=TRUE) {
     
     if (my.validation == TRUE) {
         
@@ -408,7 +456,7 @@ LASSO_feature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=F
 
 
 
-excel_output <- function(my.list, my.sheetname) {
+ExcelOutput <- function(my.list, my.sheetname) {
     if (is.null(my.list)) {
         cat("\nDifferential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict?\n")
     } else {
@@ -435,7 +483,7 @@ excel_output <- function(my.list, my.sheetname) {
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-get_colors <- function(my.truestatus, my.colors) {
+GetColors <- function(my.truestatus, my.colors) {
     if (length(my.colors) > length(levels(as.factor(my.truestatus)))) {
     my.colors <- my.colors[-1]
     }
@@ -467,7 +515,7 @@ get_colors <- function(my.truestatus, my.colors) {
 
 
 
-my_heatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
+MakeHeatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
     pdf(paste0(my.filename,"_heatmap.pdf"))
     heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colors, rep("white", length(my.group))), margins = c(14,8), cexCol=1.2, cexRow = 1.3)
     map <- makecmap(-3:4)
@@ -497,7 +545,7 @@ my_heatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 
 
-my_survival <- function(my.survres, my.filename, my.n) {
+SurvivalCOX <- function(my.survres, my.filename, my.n) {
     survival_conf  <- lapply(my.survres, function(x) summary(x)[2, c(4,6,7)])
     survival_conf  <- data.frame(do.call(rbind, survival_conf))
     colnames(survival_conf) <- c("HR", "lower", "upper")
@@ -505,7 +553,7 @@ my_survival <- function(my.survres, my.filename, my.n) {
     survival_conf$pval <- survival_pval
     survival_conf$fdr <- p.adjust(survival_pval, method = "fdr", n=length(survival_pval))
     survival_conf$feature <- as.factor(names(my.survres))
-    survival_conf$sig <- as.factor(ifelse(survival_conf$fdr <=0.05, 1, 0))
+    survival_conf$Significant <- as.factor(ifelse(survival_conf$fdr <=0.05, 1, 0))
     survival_conf$InverseFDR <- 1/survival_conf$fdr
     
     
@@ -514,7 +562,7 @@ my_survival <- function(my.survres, my.filename, my.n) {
         n.splits <- chunk2(1:nrow(survival_conf),n.splits)
         features <- lapply(n.splits, function(x) survival_conf[x,])
         
-        p1 <- lapply(features, function(x) ggplot(x, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR)) + scale_color_manual(values=c("grey70", "black")) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x))))
+        p1 <- lapply(features, function(x) ggplot(x, aes(feature, HR)) + geom_point(aes(colour = Significant, size = InverseFDR)) + scale_color_manual(values=c("grey70", "black")) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x))))
         for (i in 1:length(p1)) {
             pdf(paste0(as.character(names(p1)[i]),"_individual_corrplots.pdf"), height=6, width=12)
             print(p1[i])
@@ -523,7 +571,7 @@ my_survival <- function(my.survres, my.filename, my.n) {
 
     } else {
         pdf(paste0(my.filename, "_corrplot.pdf"), height=6, width=12)
-        p1 <- ggplot(survival_conf, aes(feature, HR)) + geom_point(aes(colour = sig, size = InverseFDR)) + scale_color_manual(values=c("grey70", "black")) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x)))
+        p1 <- ggplot(survival_conf, aes(feature, HR)) + geom_point(aes(colour = Significant, size = InverseFDR)) + scale_color_manual(values=c("grey70", "black")) + geom_errorbar(aes(ymax = upper, ymin = lower)) + geom_hline(yintercept=1) + theme_bw() + theme(axis.text.x = element_text(size=13, color = "black", angle = 90, hjust = 1), axis.text.y = element_text(size=12, color = "black"), axis.title = element_text(size=15)) + theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black" )) + scale_y_continuous(breaks=number_ticks(10)) + xlab("Features") + ylab("Hazard Ratio") + scale_y_continuous(trans = log2_trans(), breaks = trans_breaks("log2", function(x) 2^x),labels = trans_format("log2", math_format(2^.x)))
         print(p1)
         dev.off()
     }
@@ -544,7 +592,7 @@ my_survival <- function(my.survres, my.filename, my.n) {
 	# my. index = indices of features (features) to use
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-my_survival_curve <- function(my.data, my.survivaldata, my.index) {
+MySurvivalCurve <- function(my.data, my.survivaldata, my.index) {
   features <- lapply(my.index, function(x) data.frame(as.numeric(my.data[x,]), my.survivaldata$time_to_Outcome_years, my.survivaldata$Outcome_status, my.survivaldata$Age_at_surgery))
   features <- lapply(features, setNames, c("feature", "years", "status", "age"))
   features <- lapply(features, function(x) coxph(Surv(years, status) ~ age + feature, data = x))
@@ -565,7 +613,7 @@ my_survival_curve <- function(my.data, my.survivaldata, my.index) {
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-my_correlation <- function(d1, d2, my.filename) {
+CorrAnalysis <- function(d1, d2, my.filename) {
     
     my.names <- rownames(d1)
     
@@ -599,7 +647,7 @@ my_correlation <- function(d1, d2, my.filename) {
 	# my.filename = name of output plot
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-my_correlation_plots <- function(my.data, my.serumdata, my.features, my.filename) {
+CorrelationPlots <- function(my.data, my.serumdata, my.features, my.filename) {
   my.data <- my.data[rownames(my.data) %in% my.features,]
   my.serumdata <- my.serumdata[rownames(my.serumdata) %in% my.features,]
   features <- lapply(1:nrow(my.data), function(x) data.frame(as.numeric(my.data[x,]), as.numeric(my.serumdata[x,])))
