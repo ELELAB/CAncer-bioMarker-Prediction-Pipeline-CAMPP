@@ -181,8 +181,14 @@ if (is.null(opt$metadata)){
     }
     
     # IDs
-    ids <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[1]])))
-    arg.metadata$ids <- as.character(eval(ids))
+    acall <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[1]])))
+    arg.ids <- as.character(eval(acall))
+    
+    if (length(arg.ids) <= 1) {
+        stop(paste0("No column in metadata file called ",arg.groups[[1]]))
+    } else {
+        arg.metadata$ids <- arg.ids
+    }
     
     # Match Data and Metadata
     arg.metadata <- arg.metadata[arg.metadata$ids %in% colnames(arg.data),]
@@ -191,16 +197,20 @@ if (is.null(opt$metadata)){
     acall <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[2]])))
     arg.group <- as.factor(as.character(eval(acall)))
     
+    if (length(arg.group) <= 1) {
+        stop(paste0("No column in metadata file called ",arg.groups[[2]]))
+    }
+    
     
     # Batches dataset
     if (is.null(opt$databatch)){
         arg.databatch <- FALSE
     } else {
         acall <- parse(text = paste0("arg.metadata$", as.character(opt$databatch)))
-        file <- try(arg.batch <- as.factor(as.character(eval(acall))))
+        arg.batch <- as.factor(as.character(eval(acall)))
         arg.databatch <- TRUE
-        if (class(file) == "try-error") {
-            stop("\n No column in metadata matches specified batch name for dataset!")
+        if (length(arg.batch) <= 1) {
+            stop(paste0("No column in metadata file called ",as.character(opt$databatch)))
         }
     }
     
@@ -209,13 +219,14 @@ if (is.null(opt$metadata)){
         arg.sdatabatch <- FALSE
     } else {
         acall <- parse(text = paste0("arg.metadata$", as.character(opt$sdatabatch)))
-        file <- try(arg.sbatch <- as.factor(as.character(eval(acall))))
+        arg.sbatch <- as.factor(as.character(eval(acall)))
         arg.sdatabatch <- TRUE
-        if (class(file) == "try-error") {
-            stop("\n No column in metadata matches specified batch name for second dataset!")
+        if (length(arg.sbatch) <= 1) {
+            stop(paste0("No column in metadata file called ",as.character(opt$sdatabatch)))
         }
     }
 }
+
 
 
 
@@ -291,9 +302,9 @@ if (is.null(opt$FDR)){
 
 # Colors
 if (is.null(opt$colors)){
-    arg.colors <- as.vector(viridis(length(levels(arg.group)), begin = 0.2, end = 0.8, option="cividis"))
+    arg.colors <- viridis(length(levels(arg.group)), begin = 0.2, end = 0.8)
 } else {
-    arg.colors <- as.list(strsplit(opt$colors, ",")[[1]])
+    arg.colors <- as.character(unlist(strsplit(opt$colors, split=",")))
 }
 
 
@@ -316,7 +327,7 @@ if (is.null(opt$DElist)){
 
 # Heatmap
 if (is.null(opt$plotheatmap)){
-    arg.plotheatmap <- FALSE
+    arg.plotheatmap <- NULL
 } else {
     arg.plotheatmap <- opt$plotheatmap
 }
@@ -594,6 +605,11 @@ if (arg.datacheck == TRUE & !is.null(arg.sdata)) {
                                                                         ### PRELIMINARY MDS PLOT ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+#if(length(arg.group) > length(arg.colors)) {
+#    stop("\nYou have specified custom colors, but number of input colors do not match levels of groups being contrasted. Please re-run with length(colors) == length(levels(group)).\n")
+#}
+
+
 MDScolors <- gsub(pattern = "FF", replacement = "", x = arg.colors)
 
 
@@ -703,31 +719,6 @@ if (!is.null(res.DE)) {
     res.DE.names <- arg.DElist
 } else {
     stop("\n- No signficant DE/DA hits found. Check output file from differential expression analysis. You can also provide a custom file of DE/DA features. See argument -l.\n")
-}
-
-
-# Plotting results of differential expression analysis
-
-if (arg.plotheatmap == TRUE) {
-    # color scheme
-    arg.colors.hm <- GetColors(as.character(arg.group), arg.colors[1:length(levels(as.factor(as.character(arg.metadata$group))))])
-    
-    if (arg.databatch == TRUE){
-        arg.DE.hm <- data.batch[rownames(data.batch) %in% res.DE.names,]
-        name <- "_batchcorr"
-    } else {
-        arg.DE.hm <- arg.data[rownames(arg.data) %in% res.DE.names,]
-        name <- ""
-    }
-    
-    # heatmap colors in blue
-    arg.hm.gradient <- viridis(300)
-    
-    # Heatmap as pdf
-    MakeHeatmap(arg.DE.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename)
-
-} else {
-    cat("\n- No heatmap requested.\n")
 }
 
 
@@ -870,6 +861,52 @@ if (!is.null(arg.lasso)) {
 
 
 
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                    ### Plotting Results Heatmap ###
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+if (!is.null(arg.plotheatmap)) {
+    # color scheme
+    arg.colors.hm <- GetColors(as.character(arg.group), arg.colors)
+    
+    
+    if (arg.databatch == TRUE){
+        arg.hm <- data.batch
+        name <- "_batchcorr"
+    } else {
+        arg.hm <- arg.data
+        name <- ""
+    }
+    
+    
+    if (arg.plotheatmap == "ALL") {
+        stop("\nOption ALL is not allowed for heatmap, too heavy! Pick either 'DE', 'DA', 'LASSO', 'EN' or 'Consensus'.\n")
+    } else if (arg.plotheatmap %in% c("DA", "DE")) {
+        arg.hm <- arg.hm[rownames(arg.hm) %in% res.DE.names,]
+    } else {
+        if(!is.null(arg.lasso)) {
+            if (arg.plotheatmap == "Consensus") {
+                arg.hm <- arg.hm[rownames(arg.hm) %in% as.character(consensus$name),]
+            } else {
+                arg.hm <- arg.hm[rownames(arg.hm) %in% as.character(VarsSelect$LASSO.Var.Select),]
+            }
+        } else {
+            stop("You have chosen to perform survival analysis with results from LASSO/EN but this analysis has not been performed. Please re-run pipeline with parameter -l (see Manual or help (-h))")
+        }
+    }
+    
+
+    # heatmap colors in blue
+    arg.hm.gradient <- viridis(300, option="cividis")
+    
+    # Heatmap as pdf
+    MakeHeatmap(arg.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename)
+    
+} else {
+    cat("\n- No heatmap requested.\n")
+}
+
 
 
 
@@ -898,6 +935,7 @@ if (!is.null(arg.sdata)) {
     
     
     retainedSamp <- intersect(colnames(arg.data), colnames(arg.sdata))
+    
     if (arg.corrby == "ALL") {
         retainedvar <- intersect(rownames(arg.data), rownames(arg.sdata))
     } else if (arg.corrby %in% c("DA", "DE")) {

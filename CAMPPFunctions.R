@@ -484,17 +484,9 @@ ExcelOutput <- function(my.list, my.sheetname) {
 
 
 GetColors <- function(my.truestatus, my.colors) {
-    if (length(my.colors) > length(levels(as.factor(my.truestatus)))) {
-    my.colors <- my.colors[-1]
-    }
-    hm_col <- data.frame(levels(as.factor(my.truestatus)), my.colors)
-    colnames(hm_col) <- c("status", "mycolor")
-    true_status <- data.frame(my.truestatus)
-    myorder <- 1:nrow(true_status)
-    true_status$order <- myorder
-    colnames(true_status) <- c("status", "order")
-    col <- merge(true_status, hm_col, by="status", all.x =TRUE)
-    col <- col[order(col$order),]
+    hm_col <- data.frame(status = levels(as.factor(my.truestatus)), mycolor = my.colors)
+    true_status <- data.frame(status = my.truestatus)
+    col <- join(true_status, hm_col)
     col$mycolor <- ifelse(is.na(col$mycolor), "black", as.character(col$mycolor))
     return(as.matrix(col$mycolor))
 }
@@ -516,11 +508,12 @@ GetColors <- function(my.truestatus, my.colors) {
 
 
 MakeHeatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
-    pdf(paste0(my.filename,"_heatmap.pdf"))
-    heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colors, rep("white", length(my.group))), margins = c(14,8), cexCol=1.2, cexRow = 1.3)
+    pdf(paste0(my.filename,"_heatmap.pdf"), height = 13, width=11)
+    heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colors, rep("white", length(my.group))), margins = c(14,8), cexCol=1, cexRow = 0.8)
     map <- makecmap(-3:4)
-    map$colors <- viridis((length(map$breaks)-1))
+    map$colors <- viridis((length(map$breaks)-1), option="cividis")
     hkey(map, x = 0, y = 0, title = "LogFC", stretch = 2)
+    legend("topleft", legend = as.character(levels(my.group)), fill=levels(as.factor(my.colors)), cex = 0.7)
     dev.off()
 }
 
