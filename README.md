@@ -12,7 +12,6 @@ The pipeline consists of three R scrips which are currently run from the linux c
                                   CAMPP.R
                                   
 The CAMPPInstall.R script is run the first time the pipeline is used to ensure that all needed R-packages are installed. 
-This part may require the user to open R and manually pick a CRAN-mirror. The user guide explains this in detail.
 
 The CAMPPFunctions.R script contains custum functions used for analysis and is sourced within the CAMPP.R. The CAMPPFunctions.R script should be located in the folder from which the pipeline is run.
 
