@@ -290,6 +290,54 @@ MDSPlot <- function(my.data, my.group, my.labels, my.cols) {
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function for Estimating Kmeans
+# Takes as arguments;
+# my.data = a dataframe of expression/abundance counts
+# n = number of sample subsets to generate
+# l = size of sample subsets
+# k = number of groups to test
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
+    clus.list <- list()
+    res.list <- list()
+    for (idx in 1:length(n)) {
+        df <- t(my.data[sample(nrow(my.data), l), ])
+        BICout <- Mclust(df, G=k)
+        BICout <- data.frame(apply(BICout$BIC, 1, function(x) max(x)))
+        colnames(BICout) <- "BICs"
+        Ks <- which.max(BICout$BICs)
+        clus.list[[idx]] <- Ks
+    }
+    nclus <- sort(unique(unlist(clus.list)))
+    if (length(nclus) == 0) {
+        nclus <- 1:5
+    }
+    for (idx in 1:length(nclus)) {
+        set.seed(10)
+        Kclus <- kmeans(t(my.data), nclus[[idx]])
+        Clusters <- as.factor(paste0("C",data.frame(Kclus$cluster)$Kclus.cluster))
+        d<-dist(t(my.data))
+        fit <- cmdscale(d,eig=TRUE, k=2)
+        res <-data.frame(names=rownames(fit$points),M1=fit$points[,1],M2=fit$points[,2])
+        res$Clusters <- Clusters
+        res.list[[idx]] <- Clusters
+        Pal <- viridisLite::viridis(length(levels(as.factor(res$Clusters))))
+        p <- ggplot(res, aes(x=M1, y=M2)) + geom_point(aes(fill = Clusters, colour = Clusters), shape=21, size = 3, stroke = 0.1) + guides(fill = guide_legend(override.aes = list(shape = 22))) + scale_fill_manual(values=Pal) + scale_colour_manual(values=rep("white", length(Pal))) + theme_bw() + geom_text(label = my.labels, colour = "grey50", nudge_x = 0.25, nudge_y = 0.25, size =3) + theme(legend.title=element_blank()) + theme(legend.text = element_text(size = 14), axis.title=element_text(size=14)) + theme(legend.position = "top") + theme(axis.text=element_text(size=14)) + theme(axis.text = element_text(colour = "black"))
+        ggsave(file=paste0("BestKmeans_C", as.character(nclus[[idx]]), ".pdf"), p, width = 10, height = 8)
+    }
+    names(res.list) <- paste0("Clus", nclus)
+    res.df <- as.data.frame(res.list)
+    res.df$OriIDs <- colnames(my.data)
+    return(res.df)
+}
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTION TO OBTAIN DIFFERENTIALLY ABUNDANT FEATURES:
 # Takes as arguments; 
 	# my.contrast = a contrast between groups of interest

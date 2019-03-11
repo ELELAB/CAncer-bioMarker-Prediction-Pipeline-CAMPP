@@ -31,7 +31,8 @@ spec = matrix(c(
   "data", "d", 1, "character",
   "metadata", "m", 1, "character",
   "groups", "g", 1, "character",
-  "datacheck", "k", 2, "logical",
+  "datacheck", "j", 2, "logical",
+  "kmeans", "k", 2, "character",
   "sdata", "s", 2, "character",
   "survival", "u", 2, "character",
   "survplot", "q", 2, "numeric",
@@ -61,7 +62,7 @@ opt = getopt(spec)
 
 # Help
 if(!is.null(opt$help)) {
-    cat("\nFlags:\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If a second dataset is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your analysis these should be included in the metadata sheet as a column(s).\n\n-s --sdata: Argument for correlation analysis. Comma seperated list (no quotes, no paranthesis etc.) of two elements. First element must be a file (xlsx or txt) with expression values (rows as features and columns as samples) and the second element must specify which features should be correlated, options are: ALL, DE, DA, LASSO, EN or Consensus.\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DE, DA, LASSO, EN or Consensus. In principal the full dataframe of variables may be used as well (if argument is set to ALL), HOWEVER this is not advisable unless the dataset is small with very few variables. Survival info must be included in the metadata excel sheet. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If two datasets are provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If two datasets are provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n\n-e --sdatabatch: TRUE or FALSE specifies if you want to correct for experimental sample batches. Batch information should be included in the metadata in a column named 'sdatabatch'.\n\n-n --filename: Name of result files from analysis.\n\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n\n-r --FDR: Alpha level for significance.\n\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-p --covar: Covariates to include in analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata sheet.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-i --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
+    cat("\nFlags:\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your analysis these should be included in the metadata file as a column(s).\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If a second dataset is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-g --groups: Argument -g should be specified as a comma separated list of length two (no quotes or parentheses), first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.\n\n-j Distributional Checks: Logical argument (TRUE/FALSE) which specifies whether Cullen-Frey graphs should be made for 10 randomly selected variables to check data distributions. This flag is per default set to TRUE.\n\n-k --kmeans: Argument for kmeans clustering. The -k flag must be specified as a character matching the name of a column in the metadata file, denoting the labeling of points on the MDS plot(s). If -k is empty (no column name specified) no labels will be added to the plot.\n\n-s --sdata: Argument for correlation analysis. Comma seperated list (no quotes, no paranthesis etc.) of two elements. First element must be a file (xlsx or txt) with expression values (rows as features and columns as samples) and the second element must specify which features should be correlated, options are: ALL, DE, DA, LASSO, EN or Consensus.\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DE, DA, LASSO, EN or Consensus. In principal the full dataframe of variables may be used as well (if argument is set to ALL), HOWEVER this is not advisable unless the dataset is small with very few variables. Survival info must be included in the metadata excel file. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If two datasets are provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If two datasets are provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: TRUE or FALSE specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Batch information should be included in the metadata in a column named 'batch'.\n\n-e --sdatabatch: TRUE or FALSE specifies if you want to correct for experimental sample batches. Batch information should be included in the metadata in a column named 'sdatabatch'.\n\n-n --filename: Name of result files from analysis.\n\n-f --logFC: Log fold change cut-off defining significant hits (proteins, genes, miRNAs or N-features). If omitted logFC cutoff will be set to 1.\n\n-r --FDR: Alpha level for significance.\n\n-o --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-p --covar: Covariates to include in analysis. If multiple of these, they should be specified with commas as separator (e.g. Covar1,Covar2,Covar3), names should match the desired columns in the metadata file.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-i --DElist: Personal list of DE targets, one ID (name) per line. IDs (names) much match at least one of those found in the count data rows.\n\n-a --plotheatmap: TRUE or FALSE specifies if heatmap of DE/DA features should be made.\n\n")
     
     stop("\n- Argument -h (help) selected, exiting script.")
 }
@@ -92,7 +93,7 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "sva", "edgeR", "glmnet", "openxlsx", "xlsx", "ggplot2", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram")
+list.of.packages <- c("limma", "sva", "edgeR", "glmnet", "openxlsx", "xlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust")
 
 lapply(list.of.packages, library, character.only=T)
 
@@ -110,7 +111,7 @@ cat("\nCAMPP Running Messages:\n")
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Dataset
 if (is.null(opt$data)){
-    stop("\n- Argument data (-d) is missing. Data provided must be an excel sheet with features (genes, proteins ect.) as rows and samples as columns.\n")
+    stop("\n- Argument data (-d) is missing. Data provided must be an excel file with features (genes, proteins ect.) as rows and samples as columns.\n")
 } else {
     arg.data <- opt$data
     arg.data <- ReadMyFile(arg.data, TRUE)
@@ -164,7 +165,7 @@ if (!is.null(arg.sdata)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Metadata
 if (is.null(opt$metadata)){
-    stop("\n- Argument metadata (-m) is missing. Metadata provided must be an excel sheet with minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n")
+    stop("\n- Argument metadata (-m) is missing. Metadata provided must be an excel file with minimum two columns named 'ids' (sample names matching those in the object above) and 'group' (diagnosis, tumor stage, ect.).\n")
 } else {
     arg.metadata <- opt$metadata
     arg.metadata <- ReadMyFile(arg.metadata, FALSE)
@@ -280,6 +281,18 @@ if (is.null(opt$plotmds)){
     arg.plotmds <- FALSE
 } else {
     arg.plotmds <- opt$plotmds
+}
+
+
+# Kmeans
+if (is.null(opt$kmeans)){
+    arg.kmeans <- FALSE
+} else {
+    arg.kmeans <- TRUE
+    file <- try(labels.kmeans <- as.character(eval(parse(text = paste0("arg.metadata$", as.character(opt$kmeans))))))
+    if (class(file) == "try-error") {
+        labels.kmeans <- ""
+    }
 }
 
 
@@ -633,6 +646,66 @@ if (arg.plotmds == TRUE && arg.databatch == TRUE){
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                 ### Kmeans ###
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+if (arg.kmeans == TRUE) {
+    # Number of sample sets to generate
+    nsets <- 1:ceiling(nrow(arg.data)/1000)
+    if(length(nsets) > 10) {
+        nsets <- 1:10
+    }
+    
+    # Number of variables in each sample set
+    setsize <- nrow(arg.data)
+    if (setsize > 3000) {
+        setsize <- 3000
+    }
+
+    
+    # Number of kmeans to try
+    if(ncol(arg.data) <= 100) {
+        nks <- 2:5
+    } else if (ncol(arg.data) > 100 && ncol(arg.data) <= 500) {
+        nks <- 2:10
+    } else {
+        nks <- 2:15
+    }
+    
+    
+    cat(paste0("Based on size of dataset, ", length(nsets), " sample sets will be generated of size ", setsize, " and ", length(nks), " clusters will be tested - N.B This may take up to 10 min!\nRunning......"))
+    
+    dir.create("KmeansResults")
+    setwd("KmeansResults/")
+    
+    if (arg.databatch == TRUE) {
+        KmeansOut <- EstimateKmeans(data.batch, nsets, setsize, nks, labels.kmeans, arg.filename)
+    } else {
+        KmeansOut <- EstimateKmeans(arg.data, nsets, setsize, nks, labels.kmeans, arg.filename)
+    }
+    
+    out <- cbind(arg.metadata, KmeansOut)
+    xlsx::write.xlsx(out, file=paste0(arg.filename,"_Metadata_Kmeans.xlsx"), row.names=FALSE, col.names=TRUE)
+    setwd("..")
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1348,7 +1421,7 @@ if (!is.null(arg.survival)) {
         survival.results <- survival.results[-seq((length(survival.results)-length(arg.covarS)), length(survival.results), 1)]
     }
     
-    # Setting up data and writing out excel sheet with results and making HR stemplot
+    # Setting up data and writing out excel file with results and making HR stemplot
     survival.data <- SurvivalCOX(survival.results, arg.filename, arg.survplot)
     xlsx::write.xlsx(survival.data, file=paste0(arg.filename,"_survival.xlsx"), row.names=TRUE)
     setwd("..")
