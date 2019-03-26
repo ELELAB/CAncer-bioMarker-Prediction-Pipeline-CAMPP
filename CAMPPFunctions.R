@@ -11,6 +11,18 @@
 													### FUNCTIONS ###
 													
 
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Reading in files
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+SplitList <- function(my.list) {
+    my.list <- as.character(unlist(strsplit(my.list, split=",")))
+    return(my.list)
+}
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Reading in files
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -19,20 +31,31 @@
 
 ReadMyFile <- function(my.data, my.expr) {
     if(my.expr == TRUE) {
-        file <- try(my.data <- openxlsx::read.xlsx(my.data, colNames = TRUE, rowNames = TRUE), silent = TRUE)
+        file <- try(my.data <- openxlsx::read.xlsx(my.data, colNames = TRUE, rowNames = FALSE), silent = TRUE)
         if (class(file) == "try-error") {
             cat("\n- sdata file is not .xlsx, trying .txt\n")
-            file <- try(my.data <- read.delim(my.data, header = TRUE, row.names = 1), silent = TRUE)
+            file <- try(my.data <- read.delim(my.data, header = TRUE), silent = TRUE)
             if (class(file) == "try-error") {
-                file <- try(my.data <- read.delim(my.data, header = TRUE, row.names = 1, sep=";"), silent = TRUE)
+                file <- try(my.data <- read.delim(my.data, header = TRUE, sep=";"), silent = TRUE)
                 if (class(file) == "try-error") {
                     stop("\n- sdata file must be .xlsx or .txt\n")
                 }
             }
         }
-        my.names <- rownames(my.data)
-        my.data <- as.matrix(as.data.frame(lapply(my.data, as.numeric)))
-        rownames(my.data) <- my.names
+        
+        # Average duplicates and get IDs
+        colnames(my.data)[1] <- "IDs"
+        IDs <- my.data$IDs
+        my.data$IDs <- NULL
+        
+        my.data <- as.data.frame(lapply(my.data, as.numeric))
+        my.data$IDs <- IDs
+        my.data <-  data.frame(data.table(my.data)[, lapply(.SD, mean), by=IDs])
+        
+        my.names <- my.data$IDs
+        my.data$IDs <- NULL
+        my.data <- as.matrix(my.data)
+        rownames(my.data) <- gsub("-", "_", my.names)
         
     } else {
         file <- try(my.data <- openxlsx::read.xlsx(my.data, colNames = TRUE, rowNames = FALSE), silent = TRUE)
@@ -93,7 +116,7 @@ ReplaceNAs <- function(my.data) {
             my.data <- as.data.frame(lapply(my.data, as.numeric))
         }
         
-        file <- try(my.data.lls <- data.frame(completeObs(llsImpute(as.matrix(my.data), k = 10, correlation="spearman", allVariables=TRUE))))
+        file <- try(my.data.lls <- data.frame(completeObs(llsImpute(as.matrix(my.data), k = 10, correlation="spearman", allVariables=TRUE))), silent =TRUE)
         hasNegB <- unique(as.vector(my.data < 0))
         hasNegA <- unique(as.vector(my.data.lls < 0))
         
@@ -306,9 +329,7 @@ EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
     for (idx in 1:length(n)) {
         df <- t(my.data[sample(nrow(my.data), l), ])
         BICout <- Mclust(df, G=k)
-        BICout <- data.frame(apply(BICout$BIC, 1, function(x) max(x)))
-        colnames(BICout) <- "BICs"
-        Ks <- which.max(BICout$BICs)
+        Ks <- as.numeric(strsplit(names(summary(BICout$BIC))[1], ",")[[1]][[2]])
         clus.list[[idx]] <- Ks
     }
     nclus <- sort(unique(unlist(clus.list)))
@@ -330,7 +351,6 @@ EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
     }
     names(res.list) <- paste0("Clus", nclus)
     res.df <- as.data.frame(res.list)
-    res.df$OriIDs <- colnames(my.data)
     return(res.df)
 }
 
@@ -504,15 +524,34 @@ LASSOFeature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FA
 
 
 
-ExcelOutput <- function(my.list, my.sheetname) {
+#ExcelOutput <- function(my.list, my.sheetname) {
+#    if (is.null(my.list)) {
+#        cat("\nDifferential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict?\n")
+#    } else {
+#        my.list <- do.call(rbind, unlist(my.list, recursive=FALSE))
+#        my.names <- gsub("1[.](.*)|2[.](.*)", "", rownames(my.list))
+#        my.names <- gsub("arg.group|arg.sgroup", "", my.names)
+#        my.list$comparison <- my.names
+#        file <- try(xlsx::write.xlsx(my.list, file=paste0(my.sheetname,".xlsx"), row.names = FALSE), silent=TRUE)
+#        if (class(file) == "try-error") {
+#            stop("\n- Differential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict? Also, check you metadata file has the correct minimum required columns for analysis.")
+#        }
+#    }
+#    return(my.list)
+#}
+
+
+
+
+TextOutput <- function(my.list, my.filename) {
     if (is.null(my.list)) {
         cat("\nDifferential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict?\n")
     } else {
         my.list <- do.call(rbind, unlist(my.list, recursive=FALSE))
         my.names <- gsub("1[.](.*)|2[.](.*)", "", rownames(my.list))
-        my.names <- gsub("arg.group", "", my.names)
+        my.names <- gsub("arg.group|arg.sgroup", "", my.names)
         my.list$comparison <- my.names
-        file <- try(xlsx::write.xlsx(my.list, file=paste0(my.sheetname,".xlsx"), row.names = FALSE), silent=TRUE)
+        file <- try(write.table(my.list, paste0(my.filename,".txt"), sep = "\t", row.names=FALSE, col.names=TRUE, quote=FALSE), silent = TRUE)
         if (class(file) == "try-error") {
             stop("\n- Differential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict? Also, check you metadata file has the correct minimum required columns for analysis.")
         }
@@ -895,6 +934,360 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
     return(WGCNAres)
 }
 
+
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function which downloads the STRING database.
+# Take arguments:
+# my.geneIDs = String specifying type of gene ID to use to match IDs in STRING database. Options are: ensembl_peptide_id, hgnc_symbol, ensembl_gene_id, ensembl_transcript_id or uniprotswissprot.
+# my.version = Version of STRING database to use. Default is version 11.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+DownloadPPInt <- function(my.geneIDs, my.version = "11.0") {
+    approvedGeneIDs <- c("ensembl_peptide_id", "hgnc_symbol","ensembl_gene_id","ensembl_transcript_id", "uniprotswissprot")
+    file <- try(stringDB <- fread(paste0("9606.protein.links.v", my.version, ".txt.gz")), silent=TRUE)
+    if (class(file) == "try-error") {
+        download.file(paste0("https://stringdb-static.org/download/protein.links.v",my.version,"/9606.protein.links.v",my.version,".txt.gz"), paste0("9606.protein.links.v", my.version, ".txt.gz"))
+        stringDB <- fread(paste0("9606.protein.links.v", my.version, ".txt.gz"))
+    }
+    stringDB$protein1 <- gsub("9606.", "", stringDB$protein1)
+    stringDB$protein2 <- gsub("9606.", "", stringDB$protein2)
+    if (my.geneIDs %in% approvedGeneIDs[-1]) {
+        uqprot <- unique(c(stringDB$protein1, stringDB$protein2))
+        ensembl <- useDataset("hsapiens_gene_ensembl",mart = useMart("ensembl"))
+        map <- unique(getBM(attributes = c("ensembl_peptide_id", my.geneIDs), filters = "ensembl_peptide_id", values = uqprot, mart = ensembl))
+        colnames(map) <- c("protein1", "ID1")
+        stringDB <- merge(stringDB, map, by = "protein1", all.x = TRUE, all.y = FALSE)
+        colnames(map) <- c("protein2", "ID2")
+        stringDB <- merge(stringDB, map, by = "protein2", all.x = TRUE, all.y = FALSE)
+        stringDB <- stringDB[,-c(1,2)]
+    }
+    stringDB <- stringDB[stringDB$combined_score > 300,]
+    return(stringDB)
+}
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function which subsets a dataframe of differential expression analysis into a list of dataframes by comparison.
+# Take arguments:
+# my.data = a dataframe with results of differential expression analysis.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+DFtoList <- function(my.data) {
+    
+    my.data$name <- gsub("_", "-", my.data$name)
+    comparisons <- levels(as.factor(my.data$comparison))
+    df.list <- list()
+    
+    for (idx in 1:length(comparisons)) {
+        df <- my.data[my.data$comparison == as.character(comparisons[idx]),]
+        df.list[[idx]] <- df[,-c(2:4,6)]
+    }
+    
+    names(df.list) <- comparisons
+    
+    df.lengths <- as.numeric(unlist(lapply(df.list, function(x) nrow(x))))
+    df.lengths.min <- which(df.lengths < 2)
+    if (length(df.lengths.min) > 0) {
+        df.list <- df.list[-df.lengths.min]
+    }
+    return(df.list)
+}
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function which extracts the protein-protein interactions where each protein (gene) is differentially abundant (expressed).
+# Take arguments:
+# my.DB = output of the function "DownloadPPInt", e.g. a curated string database.
+# my.Geneset = a dataframe with results of differential expression analysis.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+GetDeaPPInt <- function(my.DB, my.Genedat) {
+    
+    df.list <- DFtoList(my.Genedat)
+    nodes.list <- list()
+    
+    for (idx in 1:length(df.list)) {
+        # Merging StringDB and datasets
+        df <- df.list[[idx]]
+        df$ID1 <- df$name
+        nodes <- merge(my.DB, df, by = "ID1")
+        df$ID2 <- df$name
+        nodes <- unique(merge(nodes, df, by = "ID2"))
+        nodes <- nodes[order(nodes$combined_score, decreasing = TRUE),]
+        df <- as.data.frame(nodes[, c(2,1,3,4,5,7,9,10,12,13)])
+        colnames(df) <- c("node1", "node2", "score", "logFC.node1", "fdr.node1", "dir.node1", "logFC.node2", "fdr.node2", "dir.node2", "comparison")
+        df <- df[!duplicated(apply(df,1,function(x) paste(sort(x),collapse=''))),]
+        nodes.list[[idx]] <- df
+    }
+    
+    names(nodes.list) <- names(df.list)
+    return(nodes.list)
+}
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function which extracts the miRNA-gene interactions where miRNAs (and potentially genes, if this data is available,) are differentially expressed.
+# Take arguments:
+# arg.miRset = string specifying what miRNA database to use, options are: miRTarBase (validated), targetscan (predicted) or tarscanbase (validated and predicted).
+# my.miRdat = a dataframe with results of differential expression analysis (miRNAs).
+# my.Geneset = a dataframe with results of differential expression analysis (genes)- by default this argument is set to NULL.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+GetGeneMiRNAInt <- function(arg.miRset, my.miRdat, my.Genedat = NULL) {
+    
+    miR.list <- DFtoList(my.miRdat)
+    nodes.list <- list()
+    
+    for (idx in 1:length(miR.list)) {
+        
+        df <- miR.list[[idx]]
+        df$node1 <- df$name
+        
+        
+        if (arg.miRset == "miRTarBase") {
+            mirs <- unique(get_multimir(mirna = df$node1, table = "mirtarbase")@data[,3:4])
+            mirs$score <- rep(1, nrow(mirs))
+            colnames(mirs) <- c("node1", "node2", "score")
+            
+        } else if (arg.miRset == "targetscan") {
+            mirs <- get_multimir(mirna = df$node1, table = "targetscan")@data[,c(3,4,7)]
+            mirs$score <- abs(as.numeric(mirs$score))
+            colnames(mirs) <- c("node1", "node2", "score")
+            
+        } else if (arg.miRset == "tarscanbase") {
+            mirsV <- get_multimir(mirna = df$node1, table = "mirtarbase")@data[, 3:4]
+            mirsV$score <- rep(1, nrow(mirsV))
+            mirsP <- get_multimir(mirna = df$node1, table = "targetscan")@data[,c(3,4,7)]
+            mirs <- unique(rbind(mirsV, mirsP))
+            mirs$score <- abs(as.numeric(mirs$score))
+            
+            mirs$IDs <- paste0(mirs[,1], "|", mirs[,2])
+            mirs <- data.table(mirs[,-c(1,2)])
+            mirs <-  data.frame(mirs[, lapply(.SD, mean), by=IDs])
+            mirs <- data.frame(do.call(rbind, strsplit(mirs$IDs, "[|]")), as.numeric(mirs[,2]))
+            colnames(mirs) <- c("node1", "node2", "score")
+            
+        } else {
+            stop("")
+        }
+        
+        mirs <- mirs[!duplicated(apply(mirs,1,function(x) paste(sort(x),collapse=''))),]
+        mirs <- mirs[mirs$score > as.numeric(quantile(mirs$score)[3]),]
+        dfmiR <- merge(df, mirs, by = "node1")
+        dfmiR <- dfmiR[, c(1,7,8,2,3,5,6)]
+        colnames(dfmiR) <- c("node1", "node2", "score", "logFC.node1", "fdr.node1", "dir.node1", "comparison")
+        dfmiR$score <- dfmiR$score * 1000
+        dfmiR <- dfmiR[-grep("^$", dfmiR$node2),]
+        
+        if(is.null(my.Genedat)) {
+            dfmiR$logFC.node2 <- as.numeric(rep(0, nrow(dfmiR)))
+            dfmiR$fdr.node2 <- rep(NA, nrow(dfmiR))
+            dfmiR$dir.node2 <- rep(NA, nrow(dfmiR))
+        }
+        nodes.list[[idx]] <- dfmiR
+    }
+    
+    names(nodes.list) <- names(miR.list)
+    
+    if(!is.null(my.Genedat)) {
+        
+        miRgene.list  <- list()
+        
+        gene.list <- DFtoList(my.Genedat)
+        
+        overlap <- intersect(names(gene.list), names(nodes.list))
+        
+        nodes.list <- nodes.list[names(nodes.list) %in% overlap]
+        gene.list <- gene.list[names(gene.list) %in% overlap]
+        
+        for (idx in 1:length(gene.list)) {
+            
+            df <- gene.list[[idx]]
+            df$node2 <- df$name
+            
+            dfmiRgene <- merge(df, nodes.list[[idx]], by = "node2")
+            dfmiRgene <- dfmiRgene[, c(7,1,8,9,10,11,2,3,5,6)]
+            colnames(dfmiRgene) <-c("node1", "node2", "score", "logFC.node1", "fdr.node1", "dir.node1", "logFC.node2", "fdr.node2", "dir.node2", "comparison")
+            dfmiRgene <- dfmiRgene[dfmiRgene$dir.node1 != dfmiRgene$dir.node2, ]
+            
+            miRgene.list[[idx]] <- dfmiRgene
+        }
+        nodes.list <- miRgene.list
+        names(nodes.list) <- overlap
+    }
+    return(nodes.list)
+}
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function for combining miRNA-gene interactions and protein-protein (gene-gene) interactions.
+# Take arguments:
+# nodes.list1 = List of networks, i.e. output of the function "GetGeneMiRNAInt".
+# nodes.list2 = List of networks, i.e. output of the function "GetDeaPPInt".
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+MatchPPGmiRInt <- function(nodes.list1, nodes.list2) {
+    
+    nodes.list <- list()
+    
+    overlap <- intersect(names(nodes.list1), names(nodes.list2))
+    
+    nodes.list1 <- nodes.list1[names(nodes.list1) %in% overlap]
+    nodes.list2 <- nodes.list2[names(nodes.list2) %in% overlap]
+    
+    for (idx in 1:length(nodes.list1)) {
+        
+        df1 <- nodes.list1[[idx]]
+        df2 <- nodes.list2[[idx]]
+        
+        nodes <- rbind(df1[df1$dir.node1 == "up",], df1[df1$dir.node1 == "down",], df2[df2$dir.node1 == "up",], df2[df2$dir.node1 == "down",])
+        nodes.list[[idx]] <- nodes
+    }
+    
+    names(nodes.list) <- overlap
+    return(nodes.list)
+}
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function to write out interaction lists and trim interactions for plotting
+# Take arguments:
+# my.nodes.list = List of networks, i.e. output of the function "GetGeneMiRNAInt" or ourput of "GetDeaPPInt" or output of "MatchPPGmiRInt".
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+TrimWriteInt <- function(my.nodes.list) {
+    
+    node.lengths <- as.numeric(unlist(lapply(my.nodes.list, function(x) nrow(x))))
+    node.lengths.min <- which(node.lengths < 2)
+    
+    if (length(node.lengths.min) > 0) {
+        my.nodes.list <- my.nodes.list[-node.lengths.min]
+    }
+    
+    set.names <- names(my.nodes.list)
+    trimlist <- list()
+    
+    for (idx in 1:length(my.nodes.list)) {
+        p.nodes <- my.nodes.list[[idx]]
+        p.nodes$myrank <- rowMeans(apply(cbind(abs(p.nodes$logFC.node1), abs(p.nodes$logFC.node2)), 2, rank))
+        p.nodes <- p.nodes[order(p.nodes$myrank, decreasing = TRUE),]
+        write.table(p.nodes, paste0(set.names[[idx]],"_AllInteractions.txt"), sep = "\t", row.names=FALSE, col.names=TRUE, quote = FALSE)
+        
+        if (nrow(p.nodes) > 100) {
+            miRidx <- grep("miR|let", p.nodes$node1)
+            if (length(miRidx) > 0) {
+                miR.nodes <- p.nodes[miRidx,]
+                
+                if (sum(miR.nodes$logFC.node2) == 0) {
+                    miRidx <- which(miR.nodes$score > as.numeric(quantile(miR.nodes$score)[4]))
+                    miR.nodes <- miR.nodes[miRidx,]
+                }
+                
+                p.nodes <- p.nodes[-miRidx,]
+                
+                if(nrow(miR.nodes) >= 100) {
+                    p.nodes <- miR.nodes[1:100,]
+                } else {
+                    p.nodes <- p.nodes[1:(100-nrow(miR.nodes)),]
+                    p.nodes <- rbind(p.nodes, miR.nodes)
+                }
+            } else {
+                p.nodes <- p.nodes[1:100,]
+            }
+        }
+        
+        p.info <- data.table(c(as.character(p.nodes$node1), as.character(p.nodes$node2)), c(p.nodes$logFC.node1, p.nodes$logFC.node2))
+        colnames(p.info) <- c("name", "logFC")
+        p.info<- data.frame(p.info[, .(Freq = .N), by = .(name, logFC)])
+        p.info <- p.info[order(p.info$Freq, decreasing = TRUE),]
+        p.info$group <- 1:nrow(p.info)
+        vircls <- viridis(2, end = 0.6, direction = -1, option = "magma")
+        p.info$calfb <- ifelse(p.info$logFC > 0, vircls[1], "grey50")
+        p.info$calfb <- ifelse(p.info$logFC < 0, vircls[2], as.character(p.info$calfb))
+        
+        myorder <- unique(as.vector(t(data.frame(p.nodes[,1:2]))))
+        p.info <- p.info[match(myorder, p.info$name),]
+        
+        trimmed <- list(p.nodes, p.info)
+        names(trimmed) <- c("p.nodes", "p.info")
+        trimlist[[idx]] <- trimmed
+    }
+    names(trimlist) <- set.names
+    return(trimlist)
+}
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Function plotting interaction networks.
+# Take arguments:
+# my.trimmed.list = List of trimmed networks, i.e. output of the function "TrimWriteInt".
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+PlotInt <- function(my.trimmed.list) {
+    
+    trim.lengths <- as.numeric(unlist(lapply(my.trimmed.list, function(x) nrow(x))))
+    trim.lengths.min <- which(trim.lengths < 10)
+    
+    if (length(trim.lengths.min) > 0) {
+        my.trimmed.list <- my.trimmed.list[-trim.lengths.min]
+    }
+    
+    trimmed.names <- names(my.trimmed.list)
+    
+    for (idx in 1:length(my.trimmed.list)) {
+        
+        p.nodes <- my.trimmed.list[[idx]]$p.nodes
+        p.info <- my.trimmed.list[[idx]]$p.info
+        
+        final.nodes <- as.matrix(p.nodes[, 1:2])
+        degrees <- as.numeric(p.info$Freq)
+        names(degrees) <- p.info$name
+        meta <- data.frame(p.info$group, degrees, p.info$name, ind=1:nrow(p.info))
+        my.order <- as.integer(meta[order(meta$degrees, decreasing = TRUE),]$ind)
+        
+        tiff(paste0(trimmed.names[[idx]],"_TopInteracions.tiff"), width = 14, height = 10, units = 'in', res = 300)
+
+        #cex.nodes = (log(degrees)/2)+0.5
+        
+        arcplot(final.nodes, ordering=my.order, labels=p.info$name, cex.labels=0.8,
+        show.nodes=TRUE, col.nodes=p.info$calfb, bg.nodes=p.info$calfb,
+        cex.nodes = log2(abs(p.info$logFC)), pch.nodes=21,
+        lwd.nodes = 2, line=-0.5,
+        col.arcs = hsv(0, 0, 0.2, 0.25), lwd.arcs = log2(p.nodes$score/100)*1.5)
+        dev.off()
+    }
+}
 
 
 
