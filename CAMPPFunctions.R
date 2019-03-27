@@ -967,7 +967,8 @@ DownloadPPInt <- function(my.geneIDs, my.version = "11.0") {
         stringDB <- merge(stringDB, map, by = "protein2", all.x = TRUE, all.y = FALSE)
         stringDB <- stringDB[,-c(1,2)]
     }
-    stringDB <- stringDB[stringDB$combined_score > 300,]
+	
+    stringDB <- stringDB[stringDB$combined_score > as.numeric(quantile(stringDB$combined_score)[2]),]
     return(stringDB)
 }
 
