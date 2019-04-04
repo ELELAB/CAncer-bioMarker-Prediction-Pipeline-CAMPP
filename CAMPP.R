@@ -762,9 +762,9 @@ if (arg.kmeans == TRUE) {
     
     # Number of kmeans to try
     if(ncol(arg.data) <= 100) {
-        nks <- 2:8
+        nks <- 2:6
     } else if (ncol(arg.data) > 100 && ncol(arg.data) <= 500) {
-        nks <- 2:12
+        nks <- 2:11
     } else {
         nks <- 2:16
     }

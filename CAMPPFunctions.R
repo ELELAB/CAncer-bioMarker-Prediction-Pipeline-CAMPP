@@ -329,13 +329,21 @@ EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
     for (idx in 1:length(n)) {
         df <- t(my.data[sample(nrow(my.data), l), ])
         BICout <- Mclust(df, G=k)
-        Ks <- as.numeric(strsplit(names(summary(BICout$BIC))[1], ",")[[1]][[2]])
+        BICout <- data.frame(apply(BICout$BIC, 1, function(x) max(x)))
+        colnames(BICout) <- "BICs"
+        if (unique(is.na(BICout$BICs)) == TRUE) {
+            Ks <- NA
+        } else {
+            Ks <- as.numeric(strsplit(names(summary(BICout$BIC))[1], ",")[[1]][[2]])
+        }
         clus.list[[idx]] <- Ks
     }
-    nclus <- sort(unique(unlist(clus.list)))
-    if (length(nclus) == 0) {
-        nclus <- 1:5
+    nclus <- unique(unlist(clus.list))
+    if (unique(is.na(nclus)) == TRUE) {
+        cat("\nNo 'best' ks could be determined. There may be little or poor clustering of samples. Ks 1:5 will be returned.\n")
+        nclus <- k
     }
+    nclus <- sort(nclus)
     for (idx in 1:length(nclus)) {
         set.seed(10)
         Kclus <- kmeans(t(my.data), nclus[[idx]])
@@ -967,7 +975,6 @@ DownloadPPInt <- function(my.geneIDs, my.version = "11.0") {
         stringDB <- merge(stringDB, map, by = "protein2", all.x = TRUE, all.y = FALSE)
         stringDB <- stringDB[,-c(1,2)]
     }
-	
     stringDB <- stringDB[stringDB$combined_score > as.numeric(quantile(stringDB$combined_score)[2]),]
     return(stringDB)
 }
@@ -1229,7 +1236,8 @@ TrimWriteInt <- function(my.nodes.list) {
         p.info<- data.frame(p.info[, .(Freq = .N), by = .(name, logFC)])
         p.info <- p.info[order(p.info$Freq, decreasing = TRUE),]
         p.info$group <- 1:nrow(p.info)
-        vircls <- viridis(2, end = 0.6, direction = -1, option = "magma")
+        vircls <- viridis(2, direction = -1 , end = 0.9, option = "cividis")
+        #vircls <- viridis(2, end = 0.6, direction = -1, option = "magma")
         p.info$calfb <- ifelse(p.info$logFC > 0, vircls[1], "grey50")
         p.info$calfb <- ifelse(p.info$logFC < 0, vircls[2], as.character(p.info$calfb))
         
