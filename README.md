@@ -17,3 +17,5 @@ The CAMPPFunctions.R script contains custum functions used for analysis and is s
 
 The CAMPP.R script acts as the actual pipeline and is run with flags from the linux command-line. 
 The flag -h is implemented for user help.
+
+Data example used in the CAMPPManual.pdf is located at https://github.com/ELELAB/N-glycan-TIF with the original publication, in the folder https://github.com/ELELAB/N-glycan-TIF/tree/master/Data/DataExamples.
