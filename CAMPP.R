@@ -94,7 +94,7 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "xlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "devtools", "arcdiagram")
+list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "devtools", "arcdiagram")
 
 lapply(list.of.packages, library, character.only=T)
 
