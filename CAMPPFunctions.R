@@ -149,7 +149,10 @@ ReplaceZero <- function(my.data, my.group) {
     
     greaterthanBG <- apply(my.data, 1, function(x) sum(x > 0))
     lessthanBG  <- which(as.numeric(greaterthanBG) < smallestGr)
-    my.data <- my.data[-lessthanBG,]
+
+    if (length(lessthanBG) > 0) {
+        my.data <- my.data[-lessthanBG,]
+    }
     
     min_per_row <- as.vector(apply(my.data, 1, function(x) min(x[x != 0])))
     for(i in 1:nrow(my.data)){
@@ -221,7 +224,6 @@ NormalizeData <- function(my.variant, my.data, my.group, my.transform, my.standa
 
 
 
-
 FitDistributions <- function(my.data) {
     discretetype <- unique(as.vector(apply(my.data, 1, function(x) x%%1==0)))
     hasNeg <- unique(as.vector(my.data < 0))
@@ -229,20 +231,44 @@ FitDistributions <- function(my.data) {
     for(idx in 1:nrow(my.data)) {
         if (FALSE %in% discretetype) {
             if (TRUE %in% hasNeg) {
-                fit_n <- fitdist(as.numeric(my.data[idx,]), "norm")
-                list.of.lists[[idx]] <-  list(fit_n)
+                try(fit_n <- fitdist(as.numeric(my.data[idx,]), "norm"), silent = TRUE)
+                l <- list()
+                if(exists("fit_n")) {
+                    l[[length(l)+1]] <- fit_n
+                }
+                list.of.lists[[idx]] <-  l
             } else {
-                fit_w  <- fitdist(as.numeric(my.data[idx,]), "weibull")
-                fit_g  <- fitdist(as.numeric(my.data[idx,]), "gamma")
-                fit_ln <- fitdist(as.numeric(my.data[idx,]), "lnorm")
-                fit_n <- fitdist(as.numeric(my.data[idx,]), "norm")
-                list.of.lists[[idx]] <-  list(fit_w, fit_g, fit_ln, fit_n)
+                try(fit_w  <- fitdist(as.numeric(my.data[idx,]), "weibull"), silent = TRUE)
+                try(fit_g  <- fitdist(as.numeric(my.data[idx,]), "gamma"), silent = TRUE)
+                try(fit_ln <- fitdist(as.numeric(my.data[idx,]), "lnorm"), silent = TRUE)
+                try(fit_n <- fitdist(as.numeric(my.data[idx,]), "norm"), silent = TRUE)
+                l <- list()
+                if(exists("fit_w")) {
+                    l[[length(l)+1]] <- fit_w
+                }
+                if(exists("fit_g")) {
+                    l[[length(l)+1]] <- fit_g
+                }
+                if(exists("fit_ln")) {
+                    l[[length(l)+1]] <- fit_ln
+                }
+                if(exists("fit_n")) {
+                    l[[length(l)+1]] <- fit_n
+                }
+                list.of.lists[[idx]] <-  l
             }
         }
         if (discretetype == TRUE) {
-            fit_p <- fitdist(as.numeric(my.data[idx,]), "pois")
-            fit_n <- fitdist(as.numeric(my.data[idx,]), "norm")
-            list.of.lists[[idx]] <-  list(fit_p, fit_n)
+            try(fit_p <- fitdist(as.numeric(my.data[idx,]), "pois"), silent = TRUE)
+            try(fit_n <- fitdist(as.numeric(my.data[idx,]), "norm"), silent = TRUE)
+            l <- list()
+            if(exists("fit_p")) {
+                l[[length(l)+1]] <- fit_p
+            }
+            if(exists("fit_n")) {
+                l[[length(l)+1]] <- fit_n
+            }
+            list.of.lists[[idx]] <-  l
         }
     }
     names(list.of.lists) <- rownames(my.data)
@@ -276,7 +302,7 @@ PlotDistributions <- function(my.data, list.of.lists) {
                 plot.colors <- viridis(4)
             }
         }
-        if (discretetype == TRUE) {
+        if (!FALSE %in% discretetype) {
             descdist(as.vector(my.data[idx,]), discrete = TRUE,  boot = 500, obs.col = viridis(1), boot.col = viridis(5)[4])
             plot.legend <- c("poisson", "norm")
             plot.colors <- viridis(2)
@@ -602,10 +628,10 @@ GetColors <- function(my.truestatus, my.colors) {
 
 
 
-MakeHeatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename) {
+MakeHeatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename, my.range) {
     pdf(paste0(my.filename,"_heatmap.pdf"), height = 13, width=11)
     heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colors, rep("white", length(my.group))), margins = c(14,8), cexCol=1, cexRow = 0.8)
-    map <- makecmap(-3:4)
+    map <- makecmap(my.range[1]:my.range[2])
     map$colors <- viridis((length(map$breaks)-1), option="cividis")
     hkey(map, x = 0, y = 0, title = "LogFC", stretch = 2)
     legend("topleft", legend = as.character(levels(my.group)), fill=levels(as.factor(my.colors)), cex = 0.7)

@@ -524,7 +524,6 @@ setwd(paste0(arg.filename, "/"))
 hasZeroD <- unique(as.vector(arg.data == 0))
 hasNegD <- unique(as.vector(arg.data < 0))
 
-
 if(arg.transform[1] %in% c("log2", "log10", "logit")) {
     if (TRUE %in% hasNegD) {
         stop("\n- Data contains negative values and cannot be log transformed. Re-run command WITHOUT flag -t, or alternatively if using two datasets, specify 'none' as the -t input for the dataset with negative values, e.g. 'none,log2' or 'log2,none'.\n")
@@ -718,11 +717,11 @@ MDScolors <- gsub(pattern = "FF", replacement = "", x = arg.colors)
 
 if (arg.plotmds == TRUE && arg.databatch == TRUE){
     mdsplot <- MDSPlot(data.batch, arg.group, "", MDScolors)
-    ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot)
+    ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot, dpi = 300, width = 8, height = 8)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
     mdsplot <- MDSPlot(arg.data, arg.group, "", MDScolors)
-    ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot)
+    ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot, dpi = 300, width = 8, height = 8)
     
 } else {
     cat("\n- No preliminary plot requested.\n")
@@ -1106,9 +1105,10 @@ if (!is.null(arg.plotheatmap)) {
 
     # heatmap colors in blue
     arg.hm.gradient <- viridis(300, option="cividis")
+    arg.range <- c(round(min(DE.out$logFC)), round(max(DE.out$logFC)))
     
     # Heatmap as pdf
-    MakeHeatmap(arg.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename)
+    MakeHeatmap(arg.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename, arg.range)
     
 } else {
     cat("\n- No heatmap requested.\n")
