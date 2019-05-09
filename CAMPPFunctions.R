@@ -621,20 +621,21 @@ GetColors <- function(my.truestatus, my.colors) {
 # Takes as arguments:
         # my.DE = dataframe with counts for differential expressed/abundant features
         # my.gradient = color gradient to use for heatmap
-        # my.colors = color pallet for groups
+        # my.colorshm = color pallet for groups full length
+        # my.colors = color pallet for groups at levels
         # my.group = a vector of groups to color by
         # my.filename = name of output plot
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
-MakeHeatmap <-  function(my.DE, my.gradient, my.colors, my.group, my.filename, my.range) {
+MakeHeatmap <-  function(my.DE, my.gradient, my.colorshm, my.colors, my.group, my.filename, my.range) {
     pdf(paste0(my.filename,"_heatmap.pdf"), height = 13, width=11)
-    heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colors, rep("white", length(my.group))), margins = c(14,8), cexCol=1, cexRow = 0.8)
+    heatmap.plus(as.matrix(scale(my.DE, scale = FALSE)), col=my.gradient, Rowv=NULL, hclustfun=function(d) hclust(d, method="ward.D2"), trace="none", labRow=rownames(my.DE), labCol='', ColSideColors=cbind(my.colorshm, rep("white", length(my.group))), margins = c(14,8), cexCol=1, cexRow = 0.8)
     map <- makecmap(my.range[1]:my.range[2])
     map$colors <- viridis((length(map$breaks)-1), option="cividis")
     hkey(map, x = 0, y = 0, title = "LogFC", stretch = 2)
-    legend("topleft", legend = as.character(levels(my.group)), fill=levels(as.factor(my.colors)), cex = 0.7)
+    legend("topleft", legend = as.character(levels(as.factor(my.group))), fill=my.colors, cex = 0.7)
     dev.off()
 }
 

@@ -1076,7 +1076,6 @@ if (!is.null(arg.plotheatmap)) {
     # color scheme
     arg.colors.hm <- GetColors(as.character(arg.group), arg.colors)
     
-    
     if (arg.databatch == TRUE){
         arg.hm <- data.batch
         name <- "_batchcorr"
@@ -1108,7 +1107,7 @@ if (!is.null(arg.plotheatmap)) {
     arg.range <- c(round(min(DE.out$logFC)), round(max(DE.out$logFC)))
     
     # Heatmap as pdf
-    MakeHeatmap(arg.hm, arg.hm.gradient, arg.colors.hm, arg.group, arg.filename, arg.range)
+    MakeHeatmap(arg.hm, arg.hm.gradient, arg.colors.hm, arg.colors, arg.group, arg.filename, arg.range)
     
 } else {
     cat("\n- No heatmap requested.\n")
