@@ -1,8 +1,6 @@
 Computational Biology Laboratory, Danish Cancer Society Research Center, Strandboulevarden 49, 2100, Copenhagen, Denmark.
 
 
-'''Created by Thilde Bagger Terkelsen, 07-01-2018, thilde@cancer.dk, thildebate@gmail.com"'''
-
 This GitHub repository was created for the The CAncer bioMarker Prediction Pipeline (CAMPP). 
 A collection of R scripts made for computational prediction of serum cancer biomarkers. 
 
