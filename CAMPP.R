@@ -11,7 +11,7 @@
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                                            # USER ARGUMENTS
+                                                                            ### USER ARGUMENTS ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 if (!require("getopt", quietly=T)) {
@@ -23,7 +23,7 @@ if (!require("getopt", quietly=T)) {
 # flag specification # ref: https://tgmstat.wordpress.com/2014/05/21/r-scripts/
 spec = matrix(c(
   "help", "h", 0, "logical",
-  "ratlib", "e", 2, "logical",
+  "rlib", "e", 2, "character",
   "variant", "v", 2, "character",
   "data", "d", 2, "character",
   "metadata", "m", 2, "character",
@@ -58,7 +58,7 @@ opt = getopt(spec)
 
 # Help
 if(!is.null(opt$help)) {
-    cat("\nFlags:\n\n-e --ratlib: Specify by TRUE or FALSE if you want to re-install the newest versions of R-packages or if you want to run with the provided packrat stable library \n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your analysis these should be included in the metadata file as a column(s).\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If a second dataset is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-g --groups: Argument -g should be specified as a comma separated list of length two (without quotes and parenthesis!). The first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.\n\n-j Distributional Checks: Logical argument (TRUE/FALSE) which specifies whether Cullen-Frey graphs should be made for 10 randomly selected variables to check data distributions. This flag is per default set to TRUE.\n\n-k --kmeans: Argument for kmeans clustering. The -k flag must be specified as a character matching the name of a column in the metadata file, denoting the labeling of points on the MDS plot(s). If -k is empty (no column name specified) no labels will be added to the plot.\n\n-o --corr: Argument for correlation analysis. String specify which features should be correlated, options are: ALL, DE, DA, LASSO, EN or Consensus.\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DE, DA, LASSO, EN or Consensus. In principal the full dataframe of variables may be used as well (if argument is set to ALL), HOWEVER this is not advisable unless the dataset is small with very few variables. Survival info must be included in the metadata excel file. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If two datasets are provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If two datasets are provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: Specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Argument takes a string of length 1 (one dataset) or 2 (two datasets), where the string(s) match a column name(s) in the metadata fle(s).\n\n-n --filename: Name of result files from analysis.\n\n-f --sig: Cut-offs for log fold change (logFC) and corrected p-value (fdr), defining significant hits (proteins, genes, miRNAs or N-features). If argument -f is set, it must be a comma separated list of length two (without quotes and parenthesis!), where the first element specifies the cut-off for logFC and the second element specifies the cut-off for corrected p-value (fdr). If omitted cutoffs will be set to -1 > logFC > 1 and corrected p-values < 0.05.\n\n-s --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-r --covar: Covariates to include in analysis. If multiple of these, they should be specified with commas as separator, e.g. Covar1,Covar2,Covar3, (without quotes and parenthesis!). Names should match the desired columns in the metadata file.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-p --PPint: Argument specifying that protein-protein interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be an .xlsx file with results of differential expression analysis generated with CAMPP, the second element in the list must be a string specifying the type of gene identifier in the DE/DA results file provided, allowed identifiers are:\nensembl_peptide_id\nhgnc_symbol\nensembl_gene_id\nensembl_transcript_id\nuniprotswissprot\nThe third element in this list must be a string specifying the version of the stringDB to use. Currently only version supported is:\n11.0.\n\n-i--GenemiRint: Argument specifying that gene-miRNA interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be a string specifying the type of miRNA identifier in the expression data file, allowed identifiers are:\nmature_mirna_ids\nmature_mirna_accession.\nThe second element in this list must be a string specifying the miRNA-gene database to use, currently options are:\ntargetscan (validated miRNAs)\nmirtarbase (predicted miRNAs)\ntarscanbase (validated + predicted miRNAs)\n\n")
+    cat("\nFlags:\n\n-e --rlib: Specify by if you want to re-install the newest versions of R-packages or if you want to run with the provided packrat stable library. If the argument is omitted, R-packages will be installed (if nessesary) from an already specified CRAN mirror. The argument may be set to either a CRAN mirror of choice, see 'https://cran.r-project.org/mirrors.html'. If the argument it set to 'packrat' (not case sensitive), the packrat library freeze will be used instead.\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your analysis these should be included in the metadata file as a column(s).\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If a second dataset is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-g --groups: Argument -g should be specified as a comma separated list of length two (without quotes and parenthesis!). The first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.\n\n-j Distributional Checks: Logical argument (TRUE/FALSE) which specifies whether Cullen-Frey graphs should be made for 10 randomly selected variables to check data distributions. This flag is per default set to TRUE.\n\n-k --kmeans: Argument for kmeans clustering. The -k flag must be specified as a character matching the name of a column in the metadata file, denoting the labeling of points on the MDS plot(s). If -k is empty (no column name specified) no labels will be added to the plot.\n\n-o --corr: Argument for correlation analysis. String specify which features should be correlated, options are: ALL, DE, DA, LASSO, EN or Consensus.\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DE, DA, LASSO, EN or Consensus. In principal the full dataframe of variables may be used as well (if argument is set to ALL), HOWEVER this is not advisable unless the dataset is small with very few variables. Survival info must be included in the metadata excel file. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If two datasets are provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If two datasets are provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: Specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Argument takes a string of length 1 (one dataset) or 2 (two datasets), where the string(s) match a column name(s) in the metadata fle(s).\n\n-n --filename: Name of result files from analysis.\n\n-f --sig: Cut-offs for log fold change (logFC) and corrected p-value (fdr), defining significant hits (proteins, genes, miRNAs or N-features). If argument -f is set, it must be a comma separated list of length two (without quotes and parenthesis!), where the first element specifies the cut-off for logFC and the second element specifies the cut-off for corrected p-value (fdr). If omitted cutoffs will be set to -1 > logFC > 1 and corrected p-values < 0.05.\n\n-s --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-r --covar: Covariates to include in analysis. If multiple of these, they should be specified with commas as separator, e.g. Covar1,Covar2,Covar3, (without quotes and parenthesis!). Names should match the desired columns in the metadata file.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-p --PPint: Argument specifying that protein-protein interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be an .xlsx file with results of differential expression analysis generated with CAMPP, the second element in the list must be a string specifying the type of gene identifier in the DE/DA results file provided, allowed identifiers are:\nensembl_peptide_id\nhgnc_symbol\nensembl_gene_id\nensembl_transcript_id\nuniprotswissprot\nThe third element in this list must be a string specifying the version of the stringDB to use. Currently only version supported is:\n11.0.\n\n-i--GenemiRint: Argument specifying that gene-miRNA interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be a string specifying the type of miRNA identifier in the expression data file, allowed identifiers are:\nmature_mirna_ids\nmature_mirna_accession.\nThe second element in this list must be a string specifying the miRNA-gene database to use, currently options are:\ntargetscan (validated miRNAs)\nmirtarbase (predicted miRNAs)\ntarscanbase (validated + predicted miRNAs)\n\n")
     
     stop("\n- Argument -h (help) selected, exiting script.")
 }
@@ -69,70 +69,112 @@ if(!is.null(opt$help)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-
-
-
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                                         ### LOAD PACKAGES AND SET ARGUMENTS ###
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# PACKRAT LIBRARY OR NEWEST R-PACKAGES
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-if (is.null(opt$ratlib)) {
-    arg.ratlib <- FALSE
-    cat("\npackrat library not used. CAMPP will assume you have run the CAMPPInstall.R script.\n")
-} else {
-    arg.ratlib <- opt$ratlib
-}
-
-
-if (arg.ratlib == TRUE) {
-    if (!require("packrat", quietly=T)) {
-        install.packages("packrat")
-        library("packrat")
-    }
-    packrat::on()
-}
-
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # START LOG FILE
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 sink("./CAMPPlog.txt", append=TRUE, split=TRUE)
+cat("\nCAMPP Running Messages:\n")
+
 
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# LOAD PACKAGES
+                                                                         ### INSTALL AND LOAD R-PACKAGES ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# LIST OF R-PACKAGES
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "devtools", "arcdiagram")
 
-file <- try(lapply(list.of.packages, library, character.only=T))
 
-if (class(file) == "try-error") {
-    stop("You need to run CAMPPInstall.R before the main script CAMPP.R. An alternative to this it to download and unzip the packrat library from the CAMPP github repository. Remember to place the unzipped packrat library in your working directory and specify the flag -e as TRUE.")
-}
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# SOURCE FUNCTIONS FROM THE FUNCTIONS SCRIPT
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 source("CAMPPFunctions.R")
 
 
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# NEWEST R-PACKAGES INSTALL AND LOAD OR PACKRAT LIBRARY
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+if(is.null(opt$rlib)) {
+    arg.rlib <- "https://mirrors.dotsrc.org/cran/"
+    is.rlib <- FALSE
+} else if (length(grep("packrat",opt$rlib, ignore.case=TRUE,value=TRUE)) == 1) {
+    is.rlib <- TRUE
+} else {
+    arg.rlib <- opt$rlib
+    is.rlib <- FALSE
+}
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# ARGUMENTS SPECIFYING DATASETS
+
+
+if (is.rlib == FALSE) {
+    cat("\npackrat library not used. CAMPP will use available R-packages from user library and install these if needed.\n")
+    
+    missing.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+    
+    if (length(missing.packages) > 0) {
+        cat("\nThe following package(s) is(are) not installed:\n")
+        
+        for (p in missing.packages) {
+            print(p)
+        }
+        
+        if ("arcdiagram" %in% missing.packages) {
+            install_github("https://github.com/gastonstat/arcdiagram")
+        }
+        
+        for (idx in 1:length(missing.packages)) {
+            install.packages.auto(as.character(missing.packages[[idx]]), arg.rlib)
+        }
+    
+    } else {
+        cat("All packages are installed.\n")
+    }
+    
+    
+    file <- try(lapply(list.of.packages, library, character.only=T))
+    
+    if (class(file) == "try-error") {
+        
+        stop("Ups! Something went wrong, one or more R-package dependencies are not installed correctly. Check the script CAMPPmissingpackages.R. Alternatively you can download and use the Packrat library freeze, see manual for specifics. Packrat library in brief:\n\n (1.) Download the Packrat library from the CAMPP repository on github (if you have not already), and make sure it is located in the same folder as CAMPP.R.\n\n (2.) set the flat -e to TRUE, and run the pipeline.")
+        
+    } else {
+        
+        cat("\nCAMPP dependencies are successfully loaded... Ready to run...\n")
+    }
+    
+} else if (is.rlib == TRUE) {
+    if (!require("packrat", quietly=T)) {
+        install.packages("packrat")
+        library("packrat")
+    }
+    packrat::on()
+    cat("\nPackrat library is being used for analysis.\n")
+    file <- try(lapply(list.of.packages, library, character.only=T))
+} else {
+    cat("\nFlag -e must be either null (omitted) or TRUE or FALSE!.\n")
+}
+
+
+
+
+
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-cat("\nCAMPP Running Messages:\n")
+                                                                        ### ARGUMENTS SPECIFYING DATASETS ###
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -1730,10 +1772,19 @@ cat("\nCAMPP RUN DONE!\n")
 
 
 
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Close packrat library.
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+if (is.rlib == TRUE){
+    packrat::off()
+    packrat::disable()
+}
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # End log file
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 sink()
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-if (arg.ratlib == TRUE){
-    packrat::off()
-}
