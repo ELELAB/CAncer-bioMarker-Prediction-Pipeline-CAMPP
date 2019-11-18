@@ -14,10 +14,9 @@
                                                                             ### USER ARGUMENTS ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-if (!require("getopt", quietly=T)) {
-    install.packages("getopt")
-    library("getopt")
-}
+install.packages("getopt", repos="https://cloud.r-project.org")
+library("getopt")
+
 
 
 # flag specification # ref: https://tgmstat.wordpress.com/2014/05/21/r-scripts/
@@ -58,7 +57,7 @@ opt = getopt(spec)
 
 # Help
 if(!is.null(opt$help)) {
-    cat("\nFlags:\n\n-e --rlib: Specify by if you want to re-install the newest versions of R-packages or if you want to run with the provided packrat stable library. If the argument is omitted, R-packages will be installed (if nessesary) from an already specified CRAN mirror. The argument may be set to either a CRAN mirror of choice, see 'https://cran.r-project.org/mirrors.html'. If the argument it set to 'packrat' (not case sensitive), the packrat library freeze will be used instead.\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your analysis these should be included in the metadata file as a column(s).\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If a second dataset is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-g --groups: Argument -g should be specified as a comma separated list of length two (without quotes and parenthesis!). The first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.\n\n-j Distributional Checks: Logical argument (TRUE/FALSE) which specifies whether Cullen-Frey graphs should be made for 10 randomly selected variables to check data distributions. This flag is per default set to TRUE.\n\n-k --kmeans: Argument for kmeans clustering. The -k flag must be specified as a character matching the name of a column in the metadata file, denoting the labeling of points on the MDS plot(s). If -k is empty (no column name specified) no labels will be added to the plot.\n\n-o --corr: Argument for correlation analysis. String specify which features should be correlated, options are: ALL, DE, DA, LASSO, EN or Consensus.\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DE, DA, LASSO, EN or Consensus. In principal the full dataframe of variables may be used as well (if argument is set to ALL), HOWEVER this is not advisable unless the dataset is small with very few variables. Survival info must be included in the metadata excel file. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If two datasets are provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If two datasets are provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: Specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Argument takes a string of length 1 (one dataset) or 2 (two datasets), where the string(s) match a column name(s) in the metadata fle(s).\n\n-n --filename: Name of result files from analysis.\n\n-f --sig: Cut-offs for log fold change (logFC) and corrected p-value (fdr), defining significant hits (proteins, genes, miRNAs or N-features). If argument -f is set, it must be a comma separated list of length two (without quotes and parenthesis!), where the first element specifies the cut-off for logFC and the second element specifies the cut-off for corrected p-value (fdr). If omitted cutoffs will be set to -1 > logFC > 1 and corrected p-values < 0.05.\n\n-s --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-r --covar: Covariates to include in analysis. If multiple of these, they should be specified with commas as separator, e.g. Covar1,Covar2,Covar3, (without quotes and parenthesis!). Names should match the desired columns in the metadata file.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying in a logical way if LASSO regression should be performed. Default setting is FALSE.\n\n-w --WGCNA: Argument specifying in a logical way if Weighed Gene Co-expression Network Analysis should be performed. Default setting is FALSE. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-p --PPint: Argument specifying that protein-protein interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be an .xlsx file with results of differential expression analysis generated with CAMPP, the second element in the list must be a string specifying the type of gene identifier in the DE/DA results file provided, allowed identifiers are:\nensembl_peptide_id\nhgnc_symbol\nensembl_gene_id\nensembl_transcript_id\nuniprotswissprot\nThe third element in this list must be a string specifying the version of the stringDB to use. Currently only version supported is:\n11.0.\n\n-i--GenemiRint: Argument specifying that gene-miRNA interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be a string specifying the type of miRNA identifier in the expression data file, allowed identifiers are:\nmature_mirna_ids\nmature_mirna_accession.\nThe second element in this list must be a string specifying the miRNA-gene database to use, currently options are:\ntargetscan (validated miRNAs)\nmirtarbase (predicted miRNAs)\ntarscanbase (validated + predicted miRNAs)\n\n")
+    cat("\nFlags:\n\n-e --rlib: Specify by if you want to re-install the newest versions of R-packages or if you want to run with the provided 'Renv' stable library. If the argument is omitted, R-packages will be installed (if nessesary) from an already specified CRAN mirror. The argument may be set to either a CRAN mirror of choice, see 'https://cran.r-project.org/mirrors.html'. If the argument it set to 'stable' (not case sensitive), the 'Renv' library freeze will be used instead.\n\n-d --data: file (xlsx or txt) with expression values, rows as features (genes, miRNAs, proteins, N-features) and columns as samples.\n\n-m --metadata: file (xlsx or txt) with metadata, minimum two columns one with ids (sample names matching those in the object above) and groups (diagnosis, tumor stage, ect.).\n(I) If the data comes from experimental batches and you want to correct for this, a column named 'batch' specifying which batch each sample belongs to (A,B,C,D, time1, time2, time3 ect) should also be included in the metadata. N.B specifying batches by numbers alone is not allowed.\n(II) If you are interested in performing survival analysis a column named 'survival' must be included specifying (in a binary way) which samples have survival information (1) and which do not (0). N.B. if you have paired cancer and normal samples the column 'survival' should only have the value 1/0 for tumour samples (NA or other character values should be used for normal samples.\n(IV) If you want to include covariates in your analysis these should be included in the metadata file as a column(s).\n\n-v --variant: Data 'variant'. Current options are 'array', 'seq', 'ms' or 'other'. This argument is mandatory and depeding on which option is chosen, data is transformed differently. If a second dataset is provided the -v option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.).\n\n-g --groups: Argument -g should be specified as a comma separated list of length two (without quotes and parenthesis!). The first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.\n\n-j Distributional Checks: Logical argument (TRUE/FALSE) which specifies whether Cullen-Frey graphs should be made for 10 randomly selected variables to check data distributions. This flag is per default set to TRUE.\n\n-k --kmeans: Argument for kmeans clustering. The -k flag must be specified as a character matching the name of a column in the metadata file, denoting the labeling of points on the MDS plot(s). If -k is empty (no column name specified) no labels will be added to the plot. \n\n-a --plotheatmap: Argument for heatmap specified as either; DE, DA, LASSO, EN or Consensus. \n\n-o --corr: Argument for correlation analysis. String specify which features should be correlated, options are: ALL, DE, DA, LASSO, EN or Consensus.\n\n-u --survival: Survival analysis may be performed on differentially expressed/abundant variables, variables from LASSO/EN regression or the consensus of these, e.g. flag -u must be specified as either; DE, DA, LASSO, EN or Consensus. In principal the full dataframe of variables may be used as well (if argument is set to ALL), HOWEVER this is not advisable unless the dataset is small with very few variables. Survival info must be included in the metadata excel file. The metadata file must contain at least four columns named; 'ids'(sample identifiers), 'age' (age in years at diagnosis, surgery or entry into trail), 'outcome.time' (time until end of follow-up in weeks, months or years, censuring, death) and 'outcome' (numeric 0 = censuring, 1=death). N.B. if you have (paired) normal samples the columns with survival information for these samples should contain NA values.\n\n-q --survplot: Arguments which specifies number of features to include per survival plot, e.g. many features requires splitting of the plot, default features per plot is 50.\n\n-z --standardize: Data centering. This option may be set to mean or median. If two datasets are provided the -z option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If the flag -z is not specified and -v = array, then quantile normalization will be performed.\n\n-t --transform: should data be transformed? Current options are 'log2', 'log10' or 'logit'. If two datasets are provided the -t option should be specified for each dataset, provided as a comma seperated list (no quotes, no paranthesis etc.). If argument is left out, no transformation of data will occur.\n\n-b --databatch: Specifies if you want to correct for experimental sample (tissue/interstitial fluid) batches. Argument takes a string of length 1 (one dataset) or 2 (two datasets), where the string(s) match a column name(s) in the metadata file(s).\n\n-n --filename: Name of result files from analysis.\n\n-f --sig: Cut-offs for log fold change (logFC) and corrected p-value (fdr), defining significant hits (proteins, genes, miRNAs or N-features). If argument -f is set, it must be a comma separated list of length two (without quotes and parenthesis!), where the first element specifies the cut-off for logFC and the second element specifies the cut-off for corrected p-value (fdr). If omitted cutoffs will be set to -1 > logFC > 1 and corrected p-values < 0.05.\n\n-s --plotmds: TRUE or FALSE specifies if a preliminary MDSplot should be made for data overview.\n\n-r --covar: Covariates to include in analysis. If multiple of these, they should be specified with commas as separator, i.e. Covar1,Covar2,Covar3, (without quotes and parenthesis!). The first element in this list must be either TRUE or FALSE. If TRUE is specified then covariates will be included in both DE/DA analysis and Survival Analsysis. If FALSE is specified covariates will ONLY be used for Survival Analsysis. Names of covariates should match the desired columns in the metadata file.\n\n-y --stratify: This flag may be used if some of the categorical (NOT continious) covariates violate the cox proportional assumption. The pipline checks for proportional hazard and will retun the covariates that fail the PH test. You may then rerun the pipeline with this flag followed by the names of the categorical covariates which failed and these will be stratified.\n\n-c --colors: Custom color pallet for MDS and heatmaps. Must be the same length as number of groups used for comparison (e.g. two groups = two colors) must be separted by commas, example: green,red,blue. See R site for avalibe colors http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf.\n\n-l --lasso: Argument specifying if LASSO or elestic net regression should be performed. This argument may be set to a value between 1 (LASSO) and > 0 (Elastic Net), but NOT to 0 exactly (Ridge Regression).\n\n-w --WGCNA: Argument specifying if Weighed Gene Co-expression Network Analysis should be performed. It takes a string, either DA, DE or ALL specifying if all variables should be included in WGCNA or only differentially expressed / abundant variables. \n\n-x --cutoffWGCNA: Argument specifying the cutoff value, in %, for top most interconnected genes (or other features) from each modules identified in the Weighed Gene Co-expression Network Analysis.\n\n-p --PPint: Argument specifying that protein-protein interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be an .xlsx file with results of differential expression analysis generated with CAMPP, the second element in the list must be a string specifying the type of gene identifier in the DE/DA results file provided, allowed identifiers are:\nensembl_peptide_id\nhgnc_symbol\nensembl_gene_id\nensembl_transcript_id\nuniprotswissprot\nThe third element in this list must be a string specifying the version of the stringDB to use. Currently only version supported is:\n11.0.\n\n-i--GenemiRint: Argument specifying that gene-miRNA interaction networks should be generated using the results of the differential expression analysis. This argument must be a list of length three (without quotes and parenthesis!). The first element in this list must be a string specifying the type of miRNA identifier in the expression data file, allowed identifiers are:\nmature_mirna_ids\nmature_mirna_accession.\nThe second element in this list must be a string specifying the miRNA-gene database to use, currently options are:\ntargetscan (validated miRNAs)\nmirtarbase (predicted miRNAs)\ntarscanbase (validated + predicted miRNAs)\n\n")
     
     stop("\n- Argument -h (help) selected, exiting script.")
 }
@@ -76,8 +75,6 @@ sink("./CAMPPlog.txt", append=TRUE, split=TRUE)
 cat("\nCAMPP Running Messages:\n")
 
 
-
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                                          ### INSTALL AND LOAD R-PACKAGES ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -89,11 +86,13 @@ cat("\nCAMPP Running Messages:\n")
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "stackoverflow", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "devtools", "arcdiagram")
+list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "devtools", "arcdiagram", "doMC", "knor", "nnet")
+
+# "stackoverflow"
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# SOURCE FUNCTIONS FROM THE FUNCTIONS SCRIPT
+# SOURCE FUNCTIONS FROM THE FUNCTIONS SCRIPT - PART 1
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -107,7 +106,7 @@ source("CAMPPFunctions.R")
 if(is.null(opt$rlib)) {
     arg.rlib <- "https://mirrors.dotsrc.org/cran/"
     is.rlib <- FALSE
-} else if (length(grep("packrat",opt$rlib, ignore.case=TRUE,value=TRUE)) == 1) {
+} else if (length(grep("stable|Stable|STABLE",opt$rlib, ignore.case=TRUE,value=TRUE)) == 1) {
     is.rlib <- TRUE
 } else {
     arg.rlib <- opt$rlib
@@ -150,17 +149,16 @@ if (is.rlib == FALSE) {
         stop("Ups! Something went wrong, one or more R-package dependencies are not installed correctly. Check the script CAMPPmissingpackages.R. Alternatively you can download and use the Packrat library freeze, see manual for specifics. Packrat library in brief:\n\n (1.) Download the Packrat library from the CAMPP repository on github (if you have not already), and make sure it is located in the same folder as CAMPP.R.\n\n (2.) set the flat -e to TRUE, and run the pipeline.")
         
     } else {
-        
+        rm(file)
         cat("\nCAMPP dependencies are successfully loaded... Ready to run...\n")
     }
     
 } else if (is.rlib == TRUE) {
-    if (!require("packrat", quietly=T)) {
-        install.packages("packrat")
-        library("packrat")
-    }
-    packrat::on()
-    cat("\nPackrat library is being used for analysis.\n")
+    install.packages("renv", repos="https://cloud.r-project.org")
+    library("renv")
+    cat("\nStable 'Renv' library is being used for analysis!\n")
+    renv::restore()
+    renv::activate()
     file <- try(lapply(list.of.packages, library, character.only=T))
 } else {
     cat("\nFlag -e must be either null (omitted) or TRUE or FALSE!.\n")
@@ -188,7 +186,7 @@ if (is.rlib == FALSE) {
 must.be.type <- c("ALL","EN", "LASSO", "DA", "DE", "Consensus")
 
 # For survival analysis, must be in metadata file:
-must.contain <- c("survival", "age", "outcome", "outcome.time")
+must.contain <- c("survival", "outcome", "outcome.time")
 
 # For miRNA-gene and protein-protein network analysis - user inputs must be in lists:
 approvedGeneIDs <- c("ensembl_peptide_id", "hgnc_symbol","ensembl_gene_id","ensembl_transcript_id", "uniprotswissprot")
@@ -215,7 +213,6 @@ if (is.null(opt$data)) {
         arg.sdata <- ReadMyFile(arg.sdata, TRUE)
     }
 }
-
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -249,7 +246,7 @@ if (is.null(opt$metadata)){
         arg.smetadata <- arg.metasets[2]
         arg.smetadata <- ReadMyFile(arg.smetadata, FALSE)
     }
-        
+    
     # IDs and Groups to check user input!
     if (is.null(opt$groups)){
         stop("Argument -g should be specified as a comma separated list of length two (without quotes and parenthesis!). The first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.")
@@ -259,7 +256,8 @@ if (is.null(opt$metadata)){
                 stop("Argument -g should be specified as a comma separated list of length two (without quotes and parenthesis!). The first element specifying the name of the column in the metadata file containing sample IDs and the second element specifying the name of the column which contains the groups for the DE/DA analysis.")
         }
     }
-        
+    
+    
         
     # IDs and Groups to contrast
     # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -267,20 +265,21 @@ if (is.null(opt$metadata)){
     # IDs
     acall <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[1]])))
     arg.ids <- as.character(eval(acall))
-        
+    
     if (length(arg.ids) <= 1) {
         stop(paste0("No column in metadata file called ",arg.groups[[1]]))
     } else {
         arg.metadata$ids <- arg.ids
     }
-        
+    
+    
     # Match Data and Metadata
     arg.metadata <- arg.metadata[arg.metadata$ids %in% colnames(arg.data),]
-        
+    
     # Groups
     acall <- parse(text = paste0("arg.metadata$", as.character(arg.groups[[2]])))
     arg.group <- as.factor(as.character(eval(acall)))
-        
+    
     if (length(arg.group) <= 1) {
         stop(paste0("No column in metadata file called ",arg.groups[[2]]))
     }
@@ -400,11 +399,17 @@ if (is.null(opt$kmeans)){
     arg.kmeans <- FALSE
 } else {
     arg.kmeans <- TRUE
-    file <- try(labels.kmeans <- as.character(eval(parse(text = paste0("arg.metadata$", as.character(opt$kmeans))))))
-    if (class(file) == "try-error") {
+    if (opt$kmeans == TRUE) {
         labels.kmeans <- ""
+    } else {
+        file <- try(labels.kmeans <- as.character(eval(parse(text = paste0("arg.metadata$", as.character(opt$kmeans))))))
+        if (class(file) == "try-error") {
+            labels.kmeans <- ""
+            rm(file)
+        }
     }
 }
+
 
 
 # Significance
@@ -462,7 +467,7 @@ if (is.null(opt$corr)){
 } else if (opt$corr %in% must.be.type) {
     arg.corrby <- opt$corr
 } else {
-    stop(paste0("Argument -s (correlation analysis) is specified. This argument takes a string denoting which set of variables to use for correlation analysis, options are: ", must.be.type,"."))
+    stop(paste0("Argument -o (correlation analysis) is specified. This argument takes a string denoting which set of variables to use for correlation analysis, options are: ", must.be.type,"."))
 }
 
 
@@ -480,10 +485,10 @@ if (is.null(opt$lasso)){
 
 if (is.null(opt$WGCNA)){
     arg.WGCNA <- NULL
-} else if (opt$WGCNA %in% c("DA", "ALL")) {
+} else if (opt$WGCNA %in% c("DA", "DE", "ALL")) {
     arg.WGCNA <- opt$WGCNA
 } else {
-    stop("WGCNA may be performed with either results of differential expression analysis (DA) or with all variables (ALL). N.B It is not advisable to run WGCNA with all variables if n > 5000. This will make WGCNA slow and plots will be difficult to iterpret. If 'ALL' is chosen and n > 5000, NO plots will be generated, but module variable interconnectivity scores will still be computed.")
+    stop("WGCNA may be performed with either results of differential abundance / expression analysis (DA / DE) or with all variables (ALL). N.B It is not advisable to run WGCNA with all variables if n > 5000. This will make WGCNA slow and plots will be difficult to iterpret. If 'ALL' is chosen and n > 5000, NO plots will be generated, but module variable interconnectivity scores will still be computed.")
 }
 
 
@@ -526,7 +531,7 @@ if (is.null(opt$covar)){
         arg.covarD <- NULL
         arg.scovarD <- NULL
     } else {
-        cat("First argument in '-r' must be TRUE or FALSE. If TRUE, covariates will be used for both DE analysis and survival analysis. If FALSE, covariates will be used only for survival analysis.")
+        stop("First argument in '-r' must be TRUE or FALSE. If TRUE, covariates will be used for both DE analysis and survival analysis. If FALSE, covariates will be used only for survival analysis.")
     }
 }
 
@@ -623,13 +628,9 @@ if(exists("arg.sdata") & arg.transform[2] %in% c("log2", "log10", "logit")) {
 }
 
 
-
-
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 
 
@@ -640,7 +641,6 @@ if(exists("arg.sdata") & arg.transform[2] %in% c("log2", "log10", "logit")) {
 NB <- " N.B This pipeline does not handle background correction of single-channel intensity data or within array normalization two-color intensity data. See limma manual section on array normalization for more on this. Data may be fully normalized with limma (R/Rstudio) or another software and the pipeline re-run."
 
 
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Dataset
 
@@ -649,6 +649,7 @@ if (exists("arg.data.original")) {
 } else {
     arg.data <- NormalizeData(arg.variant[1], arg.data, arg.group, arg.transform[1], arg.standardize[1])
 }
+
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Second Dataset
@@ -674,7 +675,6 @@ if (exists("arg.sdata")) {
 
 
 
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -692,7 +692,13 @@ if (exists("arg.sdata")) {
 if (arg.databatch == TRUE){
     if (length(arg.batch) > 0) {
         arg.design <-  model.matrix(~arg.group)
-        data.batch <- ComBat(as.matrix(arg.data), arg.batch, arg.design, par.prior=TRUE,prior.plots=FALSE)
+        
+        if (arg.variant[1] == "seq") {
+            data.batch <- ComBat(as.matrix(arg.data$E), arg.batch, arg.design, par.prior=TRUE,prior.plots=FALSE)
+        } else {
+            data.batch <- ComBat(as.matrix(arg.data), arg.batch, arg.design, par.prior=TRUE,prior.plots=FALSE)
+        }
+        
     } else {
         data.batch <- arg.data
         cat("\n- No column names match specified batchs for dataset.\n")
@@ -707,7 +713,12 @@ if (arg.databatch == TRUE){
 if (arg.sdatabatch == TRUE){
     if (length(arg.sbatch) > 0) {
         arg.sdesign <- model.matrix(~arg.sgroup)
-        sdata.batch <- ComBat(as.matrix(arg.sdata), arg.sbatch, arg.sdesign, par.prior=TRUE,prior.plots=FALSE)
+        
+        if (arg.variant[2] == "seq") {
+            sdata.batch <- ComBat(as.matrix(arg.sdata$E), arg.sbatch, arg.sdesign, par.prior=TRUE,prior.plots=FALSE)
+        } else {
+            sdata.batch <- ComBat(as.matrix(arg.sdata), arg.sbatch, arg.sdesign, par.prior=TRUE,prior.plots=FALSE)
+        }
     } else {
         sdata.batch <- arg.sdata
         cat("\n- No column names match specified batchs for second dataset. Continuing without batch correction.\n")
@@ -733,7 +744,11 @@ if (arg.datacheck == TRUE) {
     if (arg.databatch == TRUE) {
         subset.data <- data.batch[sample(nrow(data.batch), 10),]
     } else {
-        subset.data <- arg.data[sample(nrow(arg.data), 10),]
+        if (arg.variant[1] == "seq") {
+            subset.data <- arg.data$E[sample(nrow(arg.data$E), 10),]
+        } else {
+            subset.data <- arg.data[sample(nrow(arg.data), 10),]
+        }
     }
     
     list.of.dists <- FitDistributions(subset.data)
@@ -742,6 +757,8 @@ if (arg.datacheck == TRUE) {
     setwd("DataChecks/")
     PlotDistributions(subset.data, list.of.dists)
     setwd("..")
+    
+    rm(subset.data, list.of.dists)
 }
 
 
@@ -750,7 +767,12 @@ if (arg.datacheck == TRUE & exists("arg.sdata")) {
     if (arg.sdatabatch == TRUE) {
         subset.data <- sdata.batch[sample(nrow(sdata.batch), 10),]
     } else {
-        subset.data <- arg.sdata[sample(nrow(arg.sdata), 10),]
+        
+        if (arg.variant[2] == "seq") {
+            subset.data <- arg.sdata$E[sample(nrow(arg.sdata$E), 10),]
+        } else {
+            subset.data <- arg.sdata[sample(nrow(arg.sdata), 10),]
+        }
     }
     
     list.of.dists <- FitDistributions(subset.data)
@@ -759,9 +781,9 @@ if (arg.datacheck == TRUE & exists("arg.sdata")) {
     setwd("SecondDataChecks/")
     PlotDistributions(subset.data, list.of.dists)
     setwd("..")
+    
+    rm(subset.data, list.of.dists)
 }
-
-
 
 
 
@@ -788,14 +810,18 @@ if (arg.plotmds == TRUE && arg.databatch == TRUE){
     ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot, dpi = 300, width = 8, height = 8)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
-    mdsplot <- MDSPlot(arg.data, arg.group, "", MDScolors)
+    if (arg.variant[1] == "seq") {
+        mdsplot <- MDSPlot(data.frame(arg.data$E), arg.group, "", MDScolors)
+    } else {
+        mdsplot <- MDSPlot(arg.data, arg.group, "", MDScolors)
+    }
     ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot, dpi = 300, width = 8, height = 8)
+    
+    rm(mdsplot)
     
 } else {
     cat("\n- No preliminary plot requested.\n")
 }
-
-
 
 
 
@@ -814,23 +840,30 @@ if (arg.plotmds == TRUE && arg.databatch == TRUE){
 
 
 if (arg.kmeans == TRUE) {
+    
+    if (arg.variant[1] == "seq") {
+        k.data <- arg.data$E
+    } else {
+        k.data <- arg.data
+    }
+    
     # Number of sample sets to generate
-    nsets <- 1:ceiling(nrow(arg.data)/1000)
+    nsets <- 1:ceiling(nrow(k.data)/1000)
     if(length(nsets) > 10) {
         nsets <- 1:10
     }
     
     # Number of variables in each sample set
-    setsize <- nrow(arg.data)
-    if (setsize > 3000) {
-        setsize <- 3000
+    setsize <- nrow(k.data)
+    if (setsize > 2000) {
+        setsize <- 2000
     }
 
     
     # Number of kmeans to try
-    if(ncol(arg.data) <= 100) {
+    if(ncol(k.data) <= 100) {
         nks <- 2:6
-    } else if (ncol(arg.data) > 100 && ncol(arg.data) <= 500) {
+    } else if (ncol(k.data) > 100 && ncol(k.data) <= 500) {
         nks <- 2:11
     } else {
         nks <- 2:16
@@ -843,21 +876,45 @@ if (arg.kmeans == TRUE) {
     setwd("KmeansResults/")
     
     
+    list.of.dfs <- list()
+    
     if (arg.databatch == TRUE) {
-        KmeansOut <- EstimateKmeans(data.batch, nsets, setsize, nks, labels.kmeans, arg.filename)
+        for (idx in 1:length(nsets)) {
+            df <- t(data.batch[sample(nrow(data.batch), setsize), ])
+            list.of.dfs[[idx]] <- df
+        }
+        Kmeans.list <- lapply(list.of.dfs, function(x) EstimateKmeans(x, nsets))
+        Kmeans.Out <- PlotKmeans(data.batch, Kmeans.list, nks, labels.kmeans, arg.filename)
     } else {
-        KmeansOut <- EstimateKmeans(arg.data, nsets, setsize, nks, labels.kmeans, arg.filename)
+        for (idx in 1:length(nsets)) {
+            df <- t(k.data[sample(nrow(k.data), setsize), ])
+            list.of.dfs[[idx]] <- df
+        }
+        Kmeans.list <- lapply(list.of.dfs, function(x) EstimateKmeans(x, nsets))
+        Kmeans.Out <- PlotKmeans(k.data, Kmeans.list, nks, labels.kmeans, arg.filename)
     }
     
-    out <- cbind(arg.metadata, KmeansOut)
+    
+    out <- cbind(arg.metadata, Kmeans.Out)
     
     write.table(out, paste0(arg.filename,"_Metadata_Kmeans.txt"), sep = "\t", row.names=FALSE, col.names=TRUE, quote=FALSE)
+    
     setwd("..")
+    
+    rm(k.data, Kmeans.list, Kmeans.Out, out)
 }
 
 
 
 
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# CLEAN UP AND SOURCE FUNCTIONS FROM THE FUNCTIONS SCRIPT - PART 2
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+rm(SplitList, ReadMyFile, ReplaceNAs, ReplaceZero, NormalizeData, FitDistributions, PlotDistributions, MDSPlot, EstimateKmeans)
+gc(full = TRUE)
 
 
 
@@ -869,8 +926,6 @@ if (arg.kmeans == TRUE) {
 
 # Differential Expression Analysis with Limma
 
-
-#res.DE <- NULL
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # First dataset
@@ -905,6 +960,7 @@ if(is.null(arg.covarD)) {
     list2env(setNames(s, my.names), envir=.GlobalEnv)
     my.names <- paste0(my.names, collapse = "+")
     arg.design <- eval(parse(text=paste0(arg.design.str,"+",my.names,")")))
+    rm(s)
 }
 
 
@@ -925,6 +981,7 @@ if (!is.null(res.DE)) {
     DE.out <- TextOutput(res.DE, paste0(arg.filename, out.name))
     rownames(DE.out) <- NULL
     res.DE.names <- unique(DE.out$name)
+    rm(res.DE)
 } else {
     cat("No signficant DE/DA hits found. Check output file from differential expression analysis. Check your cut-off for differential expression analysis, it may be that these are too stringent.")
 }
@@ -933,6 +990,10 @@ setwd("..")
 
 
 
+
+if (arg.variant[1] == "seq") {
+    arg.data <- data.frame(arg.data$E)
+}
 
 
 
@@ -973,6 +1034,7 @@ if(!is.null(arg.PPI) & !is.null(arg.GmiRI)) {
         list2env(setNames(s, my.names), envir=.GlobalEnv)
         my.names <- paste0(my.names, collapse = "+")
         arg.sdesign <- eval(parse(text=paste0(arg.sdesign.str,"+",my.names,")")))
+        rm(s)
     }
     
     # Making group contrasts
@@ -992,6 +1054,12 @@ if(!is.null(arg.PPI) & !is.null(arg.GmiRI)) {
     }
 }
 
+
+
+
+if (exists("arg.sdata") && arg.variant[2] == "seq") {
+    arg.sdata <- data.frame(arg.sdata$E)
+}
 
 
 
@@ -1024,6 +1092,7 @@ if (!is.null(arg.lasso)) {
     if (TRUE %in% too.few) {
         stop("\n- LASSO cannot be performed, too few samples per group, minimum is 10!\n")
     }
+    
     
     dir.create("LASSOResults")
     setwd("LASSOResults/")
@@ -1089,6 +1158,8 @@ if (!is.null(arg.lasso)) {
     }
     
     
+    # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Extract results of 10 runs - Write out and plot results
     VarsSelect <- Reduce(intersect, lapply(LASSO.res, '[[', 1))
     
     if (length(VarsSelect) < 2) {
@@ -1099,15 +1170,25 @@ if (!is.null(arg.lasso)) {
     VarsSelect <- data.frame(VarsSelect[-1])
     colnames(VarsSelect) <- c("LASSO.Var.Select")
     
+
+    # Write out LASSO/EN results
     write.table(VarsSelect, paste0(arg.filename,"_LASSO.txt"), sep = "\t", row.names=FALSE, col.names=TRUE, quote=FALSE)
     
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Consensus DEA and LASSO
     consensus <- DE.out[DE.out$name %in% VarsSelect$LASSO.Var.Select,]
     
     if (nrow(consensus) > 0) {
-        
         write.table(consensus, paste0(arg.filename,"_DEA_LASSO_Consensus.txt"), sep = "\t", row.names=FALSE, col.names=TRUE, quote=FALSE)
         pdf(paste0(arg.filename, "_overlap_DEAA_LASSO_EN.pdf"), height=8, width=12)
-        venn <- venn.diagram(list(A=unique(as.character(DE.out[DE.out$dir =="up",]$name)), B=unique(as.character(DE.out[DE.out$dir =="down",]$name)), C=as.character(VarsSelect$LASSO.Var.Select)), category.names = c("D(EA) Analysis Up", "D(EA) Analysis Down", "LASSO/EN Regression"), filename=NULL, lwd = 0.7, cat.pos=0, sub.cex = 2, cat.cex= 1.5, cex=1.5, fill=viridis(3, begin = 0.2, end = 0.8, option="cividis"))
+        if (length(levels(arg.group)) == 2) {
+            venn <- venn.diagram(list(A=unique(as.character(DE.out[DE.out$dir =="up",]$name)), B=unique(as.character(DE.out[DE.out$dir =="down",]$name)), C=as.character(VarsSelect$LASSO.Var.Select)), category.names = c("D(EA) Analysis Up", "D(EA) Analysis Down", "LASSO/EN Regression"), filename=NULL, lwd = 0.7, cat.pos=0, sub.cex = 2, cat.cex= 1.5, cex=1.5, fill=viridis(3, begin = 0.2, end = 0.8, option="cividis"))
+            
+        } else {
+            venn <- venn.diagram(list(A=unique(as.character(DE.out$name)), B=as.character(VarsSelect$LASSO.Var.Select)), category.names = c("D(EA) Analysis All", "LASSO/EN Regression"), filename=NULL, lwd = 0.7, cat.pos=0, sub.cex = 2, cat.cex= 1.5, cex=1.5, fill=viridis(2, begin = 0.2, end = 0.8, option="cividis"))
+            
+        }
         grid.draw(venn)
         dev.off()
     } else {
@@ -1115,22 +1196,59 @@ if (!is.null(arg.lasso)) {
     }
     
     
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Cross Validation errors
     LassoRun <- paste0(rep("Run", 10), 1:10)
-    
-    
     CrossValErrormean <- round(unlist(lapply(LASSO.res, '[[', 2)), digits = 4)
+    cat(paste0("\nThe average leave-one-out cross validation error for LASSO/elastic-net was: ", mean(CrossValErrormean), "% and the higest error returned from any of the 10 runs was: ", max(CrossValErrormean),"%. Generally the cross validation error should be low ~ 5.0 %, as large errors may indicate a poor model and/or very heterogeneous data. On the other hand, an error of 0 might indicate over-fitting. See CAMPP manual for specifics.\n\n"))
     pCVEM <- data.frame(cbind(CrossValErrormean, LassoRun))
-    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis" ) + theme(legend.position="none") + theme(axis.text = element_text(size=14), axis.title = element_text(size=16))
+    pCVEM <- ggplot(data=pCVEM, aes(x=LassoRun, y=CrossValErrormean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis" ) + theme(legend.position="none") + ylab("CrossValErrormean in %") + theme(axis.text = element_text(size=14), axis.title = element_text(size=16))
     ggsave(paste0(arg.filename, "_CrossValidationPlot.pdf"), plot = pCVEM)
     
     
-    if (length(LASSO.res[[1]]) > 2) {
-        AUCTestDatamean <- round(unlist(lapply(LASSO.res, '[[', 3)), digits = 4)
-        pATDM <- data.frame(cbind(AUCTestDatamean, LassoRun))
-        pATDM <- ggplot(data=pATDM, aes(x=LassoRun, y=AUCTestDatamean)) + geom_bar(aes(fill = as.factor(LassoRun)), stat="identity") + theme_minimal() + scale_x_discrete(limits=c(LassoRun)) + scale_fill_viridis(begin = 0.0, end = 0.0, discrete=TRUE, option="cividis") + theme(legend.position="none") + theme(axis.text = element_text(size=14), axis.title = element_text(size=16))
-        ggsave(paste0(arg.filename, "_AUCTestDataClassification.pdf"), plot = pATDM)
+    
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Area under the curve AUC
+    if(TRUE %in% test.train) {
+        
+        ll <- list()
+        llev <- levels(as.factor(group.LASSO))
+        
+        for (idx in 1:length(llev)) {
+            pos <- which(group.LASSO == as.character(llev[idx]))
+            ll[[idx]] <- pos
+        }
+        
+        my.samp <- unlist(lapply(ll, function(x) sample(x, ceiling((length(x)/4)))))
+        
+        
+        if (arg.databatch == TRUE) {
+            LASSO.data <- data.batch
+        } else {
+            LASSO.data <- arg.data
+        }
+        
+        
+        testD <- data.frame(t(LASSO.data[rownames(LASSO.data) %in% as.character(VarsSelect$LASSO.Var.Select), my.samp]))
+        testG <- as.integer(group.LASSO[my.samp])
+        
+        trainD <- data.frame(t(LASSO.data[rownames(LASSO.data) %in% as.character(VarsSelect$LASSO.Var.Select), -my.samp]))
+        trainG <- as.integer(group.LASSO[-my.samp])
+        
+        mn.net <- nnet::multinom(trainG ~ ., data=trainD)
+        mn.pred <- predict(mn.net, newdata=testD, type="prob")
+        roc.res <- multiclass.roc(testG, mn.pred)
+        roc.res <- data.frame(round(as.numeric(sub(".*: ", "", roc.res$auc)), digits = 2))
+        colnames(roc.res) <- "AUC"
+        cat(paste0("Are under the curve (AUC) for variables selected from 10 LASSO/EN runs was: ", roc.res$AUC))
+        write.table(roc.res, paste0(arg.filename,"_AUC.txt"), row.names=FALSE, col.names = TRUE, quote = FALSE)
     }
+    
+
     setwd("..")
+    try(rm(VarsSelect, LR, venn, CrossValErrormean, mn.net, mn.pred, roc.res), silent=T)
 }
 
 
@@ -1161,7 +1279,8 @@ if (!is.null(arg.plotheatmap)) {
         if(!is.null(arg.lasso)) {
             if (arg.plotheatmap == "Consensus") {
                 arg.hm <- arg.hm[rownames(arg.hm) %in% as.character(consensus$name),]
-            } else {
+            }
+            if (arg.plotheatmap %in% c("EN", "LASSO")) {
                 arg.hm <- arg.hm[rownames(arg.hm) %in% as.character(VarsSelect$LASSO.Var.Select),]
             }
         } else {
@@ -1176,6 +1295,8 @@ if (!is.null(arg.plotheatmap)) {
     
     # Heatmap as pdf
     MakeHeatmap(arg.hm, arg.hm.gradient, arg.colors.hm, arg.colors, arg.group, arg.filename, arg.range)
+    
+    rm(arg.hm)
     
 } else {
     cat("\n- No heatmap requested.\n")
@@ -1257,6 +1378,7 @@ if (exists("arg.sdata") & !is.null(arg.corrby)) {
         cat("\n- No significant correlations, no plotting.\n")
     }
     setwd("..")
+    try(rm(res.corr,corr.out,data.corr), silent=T)
 }
 
 
@@ -1287,8 +1409,8 @@ if (exists("arg.sdata") & !is.null(arg.corrby)) {
 
 if (!is.null(arg.survival)) {
     
-    if (length(intersect(colnames(arg.metadata), must.contain)) < 4) {
-        stop("Survival analysis requested, but one or more columns; 'survival', 'age', 'outcome', 'outcome.time' are missing from metadata file!")
+    if (length(intersect(colnames(arg.metadata), must.contain)) < 3) {
+        stop("Survival analysis requested, but one or more columns; 'survival', 'outcome', 'outcome.time' are missing from metadata file!")
     }
     
     
@@ -1329,20 +1451,21 @@ if (!is.null(arg.survival)) {
     
     # If user has specified covariates for survivalanalysis, extract these.
     if(is.null(arg.covarS)) {
-        surv_object <- data.frame(t(data.surv), as.numeric(metadata.surv$outcome.time), metadata.surv$age, metadata.surv$outcome)
-        colnames(surv_object) <- c(rownames(data.surv), "outcome.time", "age", "outcome")
+        surv_object <- data.frame(t(data.surv), as.numeric(metadata.surv$outcome.time), metadata.surv$outcome)
+        colnames(surv_object) <- c(rownames(data.surv), "outcome.time", "outcome")
     } else {
         my.covars <- metadata.surv[,colnames(metadata.surv) %in% arg.covarS]
-        surv_object <- data.frame(t(data.surv), as.numeric(metadata.surv$outcome.time), metadata.surv$age, metadata.surv$outcome, my.covars)
-        colnames(surv_object) <- c(rownames(data.surv), "outcome.time", "age", "outcome", arg.covarS)
+        surv_object <- data.frame(t(data.surv), as.numeric(metadata.surv$outcome.time), metadata.surv$outcome, my.covars)
+        colnames(surv_object) <- c(rownames(data.surv), "outcome.time", "outcome", arg.covarS)
     }
     
-    
+   
     # datadist format for cph function with cubic splines.
     features <- rownames(data.surv)
     dd <- datadist(surv_object); options(datadist='dd')
     
     mylist <- list(features, dd, surv_object)
+    
     
     
     
@@ -1365,9 +1488,6 @@ if (!is.null(arg.survival)) {
         arg.covarS <- paste(arg.covarS,collapse="+")
     }
     
-    
-    
-    
     ### Liniarity of Continious Covariates ###
     # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     
@@ -1379,18 +1499,17 @@ if (!is.null(arg.survival)) {
     
     if(!is.null(arg.covarS)) {
         for (f in features) {
-            acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f),") + ", arg.covarS, ", data = surv_object, x=TRUE,y=TRUE)"))
+            acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + ", arg.covarS, ", data = surv_object, x=TRUE,y=TRUE)"))
             eval(acall)
             covariate_linearity[[as.character(f)]] <- result
         }
     } else {
         for (f in features) {
-            acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f),"), data = surv_object, x=TRUE,y=TRUE)"))
+            acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),"), data = surv_object, x=TRUE,y=TRUE)"))
             eval(acall)
             covariate_linearity[[as.character(f)]] <- result
         }
     }
-    
     
     
     # Check for liniarity violation:
@@ -1412,9 +1531,11 @@ if (!is.null(arg.survival)) {
     }
     
     
+    # Remove checks to save memory
+    rm(check1, check2)
+    
     # Re-assign features
     features <- colnames(surv_object)
-    
     
     # Anova comparing linear covariate and non-linear covariate.
     covariate_linearity  <- lapply(covariate_linearity, function(x) anova(x))
@@ -1425,28 +1546,25 @@ if (!is.null(arg.survival)) {
     # FDR correction for multiple testing
     covariate_linearity <- apply(covariate_linearity, 2, function(x) p.adjust(x, method = "fdr", n=nrow(covariate_linearity)))
     
-    
-    
-    
-    
+ 
     # Colnames with and without user-specified covariates.
     if(is.null(arg.covarS)) {
-        colnames(covariate_linearity) <- c("Age", "Feature", "Total")
+        colnames(covariate_linearity) <- c("Feature")
     } else {
         covar.names <- unlist(strsplit(arg.covarS, split="[+]"))
         if(length(grep("rcs", covar.names)) > 0) {
-            covar.names <- c("Age", "Feature", covar.names[grep("rcs", covar.names)] ,"Total")
+            covar.names <- c("Feature", covar.names[grep("rcs", covar.names)], "Total")
             covar.names <- gsub("rcs\\(|\\)", "", covar.names)
             colnames(covariate_linearity) <- covar.names
         } else {
-            colnames(covariate_linearity) <- c("Age", "Feature", "Total")
+            colnames(covariate_linearity) <- c("Feature")
         }
     }
     
+ 
     
     # Extracting p-values and filtering for significance.
     covariate_nonlinear <- colnames(covariate_linearity)[apply(covariate_linearity, 2, function(x) any(x < 0.05))]
-    
     
     # Updating covariates with cubic splines.
     if (length(covariate_nonlinear) > 0) {
@@ -1460,12 +1578,9 @@ if (!is.null(arg.survival)) {
         }
     }
     
+    rm(covariate_linearity)
     
-    
-    
-    
-    
-    
+   
     
     ### Testing Cox Proportional Hazard Assumption ###
     # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1477,46 +1592,24 @@ if (!is.null(arg.survival)) {
     
     
     for (f in features) {
-        if("age" %in% covariate_nonlinear && "feature" %in% covariate_nonlinear) {
-            if(is.null(arg.covarS.original)){
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f), "), data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+        if ("feature" %in% covariate_nonlinear) {
+            if(is.null(arg.covarS.original)) {
+                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f), "), data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
                 eval(acall)
                 pha_check[[as.character(f)]] <- result
             } else {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + rcs(", as.character(f),") + ", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + ", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
                 eval(acall)
                 pha_check[[as.character(f)]] <- result
             }
-        }
-        else if ("feature" %in% covariate_nonlinear) {
+        } else {
             if(is.null(arg.covarS.original)) {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age + rcs(", as.character(f), "), data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ ", as.character(f), ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
                 eval(acall)
                 pha_check[[as.character(f)]] <- result
+                
             } else {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age + rcs(", as.character(f),") + ", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-                eval(acall)
-                pha_check[[as.character(f)]] <- result
-            }
-        }
-        else if ("age" %in% covariate_nonlinear) {
-            if(is.null(arg.covarS.original)) {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + ", as.character(f), ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-                eval(acall)
-                pha_check[[as.character(f)]] <- result
-            } else {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ rcs(age) + ", as.character(f), " + ", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-                eval(acall)
-                pha_check[[as.character(f)]] <- result
-            }
-        }
-        else {
-            if(is.null(arg.covarS.original)) {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age +", as.character(f), ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
-                eval(acall)
-                pha_check[[as.character(f)]] <- result
-            } else {
-                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ age +", as.character(f), "+ ", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
+                acall <- parse(text = paste0("result <- data.frame(cox.zph(cph(Surv(outcome.time, outcome) ~ ", as.character(f), "+ ", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE))$table[,3])"))
                 eval(acall)
                 pha_check[[as.character(f)]] <- result
             }
@@ -1524,13 +1617,21 @@ if (!is.null(arg.survival)) {
     }
     
     
-    
-    
+
     
     # Filtering p-values for significance.
-    pha.fail.test <- as.character(unlist(lapply(pha_check, function(x) rownames(x)[apply(x, 1, function(u) any(u < 0.05))])))
+    if(length(pha_check[1]) == 1) {
+         pha.fail.test <- unlist(lapply(pha_check, function(x) any(x < 0.05)))
+         pha.fail.test <- names(pha.fail.test)[pha.fail.test == TRUE]
+    } else {
+        pha.fail.test <- as.character(unlist(lapply(pha_check, function(x) rownames(x)[apply(x, 1, function(u) any(u < 0.05))])))
+        if ("GLOBAL" %in% pha.fail.test) {
+            pha.fail.test <- pha.fail.test[-which(pha.fail.test == "GLOBAL")]
+        }
+    }
     
     
+
     cat("\nWARNING: The following features and/or covariates failed the test of proportional hazard: ", pha.fail.test, "\nIF the covariates that failed are categorical you may use strata by re-running the pipline adding flag -y followed by the names of the categorical covariates to stratify (if multiple then separate by comma). \nN.B, this pipeline does not handle continuous variables that violate the proportional hazard assumption, if any of these failed PH test, the hazard ratios of these should NOT be evaluated.\n")
     
     
@@ -1550,78 +1651,58 @@ if (!is.null(arg.survival)) {
     
     
     
-    
     ### Survival Analysis with updated covariates ###
     # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     
-    
-    
+
     
     # Survival analysis, cox-regression
+    
+ 
+    if(!is.null(arg.covarS)) {
+        features.surv <- features[-c((length(features)-length(arg.covar)):length(features))]
+    } else {
+        features.surv <- features[-c((length(features)-1):length(features))]
+    }
     
     # Picking model based on result of linearity check and proportional hazard text.
     survival.results <- list()
     
+
     
-    for (f in features) {
-        if("age" %in% covariate_nonlinear && "feature" %in% covariate_nonlinear) {
-            if(is.null(arg.covarS.original)){
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + rcs(age), data = surv_object, x=TRUE,y=TRUE)"))
+    for (f in features.surv) {
+        if ("feature" %in% covariate_nonlinear) {
+            if(is.null(arg.covarS.original)) {
+                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),"), data = surv_object, x=TRUE,y=TRUE)"))
                 eval(acall)
                 survival.results[[as.character(f)]] <- result
             } else {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + rcs(age) +", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE)"))
+                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") +", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE)"))
                 eval(acall)
                 survival.results[[as.character(f)]] <- result
             }
-        }
-        else if ("feature" %in% covariate_nonlinear) {
+        } else {
             if(is.null(arg.covarS.original)) {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + age, data = surv_object, x=TRUE,y=TRUE)"))
+                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), ", data = surv_object, x=TRUE,y=TRUE)"))
                 eval(acall)
                 survival.results[[as.character(f)]] <- result
+                
             } else {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~ rcs(", as.character(f),") + age +", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE)"))
-                eval(acall)
-                survival.results[[as.character(f)]] <- result
-            }
-        }
-        else if ("age" %in% covariate_nonlinear) {
-            if(is.null(arg.covarS.original)) {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ rcs(age), data = surv_object, x=TRUE,y=TRUE)"))
-                eval(acall)
-                survival.results[[as.character(f)]] <- result
-            } else {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ rcs(age) +", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE)"))
-                eval(acall)
-                survival.results[[as.character(f)]] <- result
-            }
-        }
-        else {
-            if(is.null(arg.covarS.original)) {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ age, data = surv_object, x=TRUE,y=TRUE)"))
-                eval(acall)
-                survival.results[[as.character(f)]] <- result
-            } else {
-                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), "+ age +", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE)"))
+                acall <- parse(text = paste0("result <- cph(Surv(outcome.time, outcome) ~", as.character(f), " +", arg.covarS.original, ", data = surv_object, x=TRUE,y=TRUE)"))
                 eval(acall)
                 survival.results[[as.character(f)]] <- result
             }
         }
     }
-    
-    
-    survival.results <- survival.results[-c((length(survival.results)-2):length(survival.results))]
-    
-    if(!is.null(arg.covarS)) {
-        survival.results <- survival.results[-seq((length(survival.results)-length(arg.covarS)), length(survival.results), 1)]
-    }
-    
+   
+   
     # Setting up data and writing out excel file with results and making HR stemplot
     survival.data <- SurvivalCOX(survival.results, arg.filename, arg.survplot)
     
     write.table(survival.data, paste0(arg.filename,"_survival.txt"), sep = "\t", row.names=TRUE, col.names=TRUE, quote=FALSE)
+    
     setwd("..")
+    rm(dd, pha_check, pha.fail.test, survival.results, features.surv, survival.data)
 }
 
 
@@ -1634,7 +1715,12 @@ if (!is.null(arg.survival)) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# SOURCE FUNCTIONS FROM THE FUNCTIONS SCRIPT - PART 3
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+rm(DAFeature, DAFeatureApply, LASSOFeature, TextOutput, MakeHeatmap, SurvivalCOX, CorrAnalysis, CorrelationPlots)
+gc(full = TRUE)
 
 
 
@@ -1654,11 +1740,10 @@ if (!is.null(arg.WGCNA)) {
         data.WGCNA <- t(arg.data)
     }
     
-    if (arg.WGCNA == "DA") {
+    if (arg.WGCNA %in% c("DA", "DE")) {
         data.WGCNA <- data.WGCNA[,colnames(data.WGCNA) %in% res.DE.names]
     }
 
-    
     dir.create("WGCNAPlots")
     setwd("WGCNAPlots/")
     # Check data
@@ -1667,12 +1752,23 @@ if (!is.null(arg.WGCNA)) {
     WGCNAres <- WGCNAAnalysis(data.WGCNA, arg.cutoffWGCNA ,arg.filename)
     setwd("..")
     
-    write.table(WGCNAres, paste0(arg.filename,"_WGCNAres.txt"), sep = "\t", row.names=TRUE, col.names=TRUE, quote=FALSE)
+    if (arg.WGCNA %in% c("DA", "DE")) {
+        logFCs <- DE.out
+        logFCs$gene <- DE.out$name
+        WGCNAres <- lapply(WGCNAres, function(x) merge(x, logFCs, by = "gene"))
+        WGCNAres <- lapply(WGCNAres, function(x) x[with(x, order(comparison, Module)),])
+    }
+    
+    mod.names <- names(WGCNAres)
+    for (idx in 1:length(WGCNAres)) {
+        write.table(WGCNAres[[idx]], paste0(mod.names[idx],"_moduleRes.txt"), sep = "\t", row.names=FALSE, col.names=TRUE, quote=FALSE)
+    }
     
     setwd("..")
+    rm(WGCNAres)
 }
 
-
+gc()
 
 
 
@@ -1774,17 +1870,20 @@ cat("\nCAMPP RUN DONE!\n")
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Close packrat library.
+# Close Renv library.
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if (is.rlib == TRUE){
-    packrat::off()
-    packrat::disable()
+    renv::deactivate()
 }
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # End log file
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+gc(full = TRUE)
 
 sink()
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+

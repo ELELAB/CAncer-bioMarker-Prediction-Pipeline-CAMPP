@@ -54,15 +54,16 @@ ReadMyFile <- function(my.data, my.expr) {
     if(my.expr == TRUE) {
         file <- try(my.data <- openxlsx::read.xlsx(my.data, colNames = TRUE, rowNames = FALSE), silent = TRUE)
         if (class(file) == "try-error") {
-            cat("\n- sdata file is not .xlsx, trying .txt\n")
+            cat("\n- Data file is not .xlsx, trying .txt\n")
             file <- try(my.data <- read.delim(my.data, header = TRUE), silent = TRUE)
             if (class(file) == "try-error") {
                 file <- try(my.data <- read.delim(my.data, header = TRUE, sep=";"), silent = TRUE)
                 if (class(file) == "try-error") {
-                    stop("\n- sdata file must be .xlsx or .txt\n")
+                    stop("\n- Data file must be .xlsx or .txt\n")
                 }
             }
         }
+        
         
         # Average duplicates and get IDs
         colnames(my.data)[1] <- "IDs"
@@ -86,7 +87,7 @@ ReadMyFile <- function(my.data, my.expr) {
             if (class(file) == "try-error") {
                 file <- try(my.data <- read.delim(my.data, header = TRUE, sep =";"), silent = TRUE)
                 if (class(file) == "try-error"){
-                    stop("\n- sdata file must be .xlsx or .txt\n")
+                    stop("\n- Metadata file must be .xlsx or .txt\n")
                 }
             }
         }
@@ -201,8 +202,7 @@ NormalizeData <- function(my.variant, my.data, my.group, my.transform, my.standa
         keep <- filterByExpr(my.data, design)
         my.data <- my.data[keep,,keep.lib.sizes=FALSE]
         my.data <- calcNormFactors(my.data, method = "TMM")
-        my.data <- voom(my.data, design, plot=FALSE)
-        my.data <- data.frame(my.data$E)
+        my.data <- voom(my.data, design, plot=TRUE)
         cat("\n-v = seq. Data will be filtered for lowly expressed variables, normalized and voom transformed.\n")
         
     } else if (my.variant %in% c("array", "ms", "other")) {
@@ -369,22 +369,16 @@ MDSPlot <- function(my.data, my.group, my.labels, my.cols) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+EstimateKmeans <- function(df, n) {
+    BIC <- mclustBIC(df)
+    mod1 <- Mclust(df, x = BIC)
+    Ks <- as.numeric(summary(mod1, parameters = TRUE)$G)
+    cat(paste0("\nCluster run complete - out of ", length(n), " in total..."))
+    return(Ks)
+}
 
-EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
-    clus.list <- list()
+PlotKmeans <- function(my.data, clus.list, k, my.labels, my.name) {
     res.list <- list()
-    for (idx in 1:length(n)) {
-        df <- t(my.data[sample(nrow(my.data), l), ])
-        BICout <- Mclust(df, G=k)
-        BICout <- data.frame(apply(BICout$BIC, 1, function(x) max(x)))
-        colnames(BICout) <- "BICs"
-        if (unique(is.na(BICout$BICs)) == TRUE) {
-            Ks <- NA
-        } else {
-            Ks <- as.numeric(strsplit(names(summary(BICout$BIC))[1], ",")[[1]][[2]])
-        }
-        clus.list[[idx]] <- Ks
-    }
     nclus <- unique(unlist(clus.list))
     if (unique(is.na(nclus)) == TRUE) {
         cat("\nNo 'best' ks could be determined. There may be little or poor clustering of samples. Ks 1:5 will be returned.\n")
@@ -393,7 +387,8 @@ EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
     nclus <- sort(nclus)
     for (idx in 1:length(nclus)) {
         set.seed(10)
-        Kclus <- kmeans(t(my.data), nclus[[idx]])
+        nth <- detectCores(logical = TRUE)
+        Kclus <- Kmeans(t(my.data), nclus[[idx]], nthread=nth)
         Clusters <- as.factor(paste0("C",data.frame(Kclus$cluster)$Kclus.cluster))
         d<-dist(t(my.data))
         fit <- cmdscale(d,eig=TRUE, k=2)
@@ -408,7 +403,6 @@ EstimateKmeans <- function(my.data, n, l, k, my.labels, my.name) {
     res.df <- as.data.frame(res.list)
     return(res.df)
 }
-
 
 
 
@@ -476,32 +470,6 @@ DAFeatureApply <- function(my.contrasts, my.data, my.design, coLFC, coFDR, my.bl
 
 
 
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# FUNCTION FOR DA ANALYSIS WITH CLINICAL PARAMETERS. THE FUNCTION CALLS THE "DA_feature_apply" FROM ABOVE.
-# Takes as arguments; 
-	# my.data = a dataframe of expression/abundance counts
-	# my.group = a vector of groups do perform contrasts on (same length as ncol(dataframe))
-	# my.coLFC and my.coFDR = a cutoff for logFC and FDR
-	# if remove is different from NULL, a vector of indices to remove must be supplied
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-#DAAllContrasts <- function(my.data, my.group, my.logFC, my.FDR, my.levels, my.remove=NULL) {
-#  if (!is.null(my.remove)) {
-#    my.data <- my.data[, -my.remove]
-#    my.group <- my.group[-my.remove]
-#  }
-#    G <- factor(as.character(my.group), levels=my.levels)
-#    combinations<- data.frame(t(combn(paste0("G", levels(G)), 2)))
-#    combinations$contr <- apply(combinations[,colnames(combinations)], 1, paste, collapse = "-")
-#    mod_design <-  model.matrix(~0+G)
-#    contrast.matrix <- eval(as.call(c(as.symbol("makeContrasts"),as.list(as.character(combinations$contr)),levels=list(mod_design))))
-#    my.DA <- DA_feature_apply(contrast.matrix, my.data, mod_design, my.logFC, my.FDR, NULL, FALSE)
-#    return(my.DA)
-#  }
-
-
-
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # LASSO FUNCTION
 # Takes arguments:
@@ -526,38 +494,31 @@ LASSOFeature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FA
         
         my.samp <- unlist(lapply(ll, function(x) sample(x, ceiling((length(x)/4)))))
         
-        testD <- my.data[,my.samp]
-        testG <- as.integer(my.group[my.samp])
-        
         my.data <- my.data[,-my.samp]
         my.group <- as.integer(my.group[-my.samp])
     }
     
     if(my.multinorm == TRUE) {
         set.seed(my.seed)
-        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10, alpha = my.LAorEN)
+        nth <- detectCores(logical = TRUE)
+        registerDoMC(cores=nth)
+        my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10, alpha = my.LAorEN, parallel=TRUE)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
         my.ma <- as(my.coef[[1]], "matrix")
-        meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
+        meanerror <- round(as.numeric(mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group))*100, digits = 2)
+        cat(paste0("\nOne LASSO/EN run completed. Mean cross validation error was = ", meanerror, "%\n"))
     } else {
         set.seed(my.seed)
         my.fit <- cv.glmnet(x = t(my.data), y = my.group, family = "binomial", type.measure = "class", nfolds = 10, alpha = my.LAorEN)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
         my.ma <- as(my.coef, "matrix")
-        meanerror <- mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group)
-    }
-    if (exists("testD")) {
-        my.roc <- roc(testG, as.numeric(predict(my.fit, t(testD), type = "response", s =my.fit$lambda.1se, alpha = my.LAorEN)))
-        my.roc <- as.numeric(sub(".*: ", "", my.roc$auc))
+        meanerror <- round(as.numeric(mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group))*100, digits = 2)
+        cat(paste0("\nOne LASSO/EN run out completed. Mean cross validation error was = ", meanerror, "%\n"))
     }
     
     my.ma <- names(my.ma[my.ma[,1] != 0, ])
     
-    if (exists("testD")) {
-        return(list(my.ma, meanerror, my.roc))
-    } else {
-        return(list(my.ma, meanerror))
-    }
+    return(list(my.ma, meanerror))
     
     rm(my.fit)
     rm(my.coef)
@@ -575,25 +536,6 @@ LASSOFeature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FA
 # my.list= a list of dataframes from DA_feature_apply with p-values, FDRs, logFC ect.
 # my.sheetname = name of sheet to save.
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-#ExcelOutput <- function(my.list, my.sheetname) {
-#    if (is.null(my.list)) {
-#        cat("\nDifferential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict?\n")
-#    } else {
-#        my.list <- do.call(rbind, unlist(my.list, recursive=FALSE))
-#        my.names <- gsub("1[.](.*)|2[.](.*)", "", rownames(my.list))
-#        my.names <- gsub("arg.group|arg.sgroup", "", my.names)
-#        my.list$comparison <- my.names
-#        file <- try(xlsx::write.xlsx(my.list, file=paste0(my.sheetname,".xlsx"), row.names = FALSE), silent=TRUE)
-#        if (class(file) == "try-error") {
-#            stop("\n- Differential Expression/Abundance Analysis yielded no results. Is your logFC or FDR cut-offs too strict? Also, check you metadata file has the correct minimum required columns for analysis.")
-#        }
-#    }
-#    return(my.list)
-#}
 
 
 
@@ -674,10 +616,7 @@ MakeHeatmap <-  function(my.DE, my.gradient, my.colorshm, my.colors, my.group, m
 
 
 
-
-
-
-
+chunk2 <- function(x,n) split(x, cut(seq_along(x), n, labels = FALSE))
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 
 
@@ -713,28 +652,6 @@ SurvivalCOX <- function(my.survres, my.filename, my.n) {
     }
     return(survival_conf)
 }
-
-
-
-
-
-
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# FUNCTION FOR GENERATING SURVIVAL ggplot CURVES
-# Takes as arguments;
-	# my.data = a dataframe with expression/abundance counts
-	# my.survivaldata = a dataframe with results of cox reagression
-	# my. index = indices of features (features) to use
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-MySurvivalCurve <- function(my.data, my.survivaldata, my.index) {
-  features <- lapply(my.index, function(x) data.frame(as.numeric(my.data[x,]), my.survivaldata$time_to_Outcome_years, my.survivaldata$Outcome_status, my.survivaldata$Age_at_surgery))
-  features <- lapply(features, setNames, c("feature", "years", "status", "age"))
-  features <- lapply(features, function(x) coxph(Surv(years, status) ~ age + feature, data = x))
-  return(features)
-}
-
 
 
 
@@ -829,8 +746,8 @@ ModuleIC <- function(vec.of.modulecolors, my.moduleColors, my.IC, my.ExpData, my
         modTOP$Module <- paste0("module", rep(vec.of.modulecolors[[idx]],nrow(modTOP)))
 
         modTOP$gene <- as.factor(rownames(modTOP))
-        bp <- ggplot(modTOP, aes(x=gene, y=kWithin))+ geom_bar(stat="identity", fill=as.character(vec.of.modulecolors[[idx]]), width = 0.4) + theme_minimal() + geom_text(aes(label=gene), color = "grey30", size = 3, angle = 90, hjust = -.05) + theme(axis.text.x=element_blank())
-        ggsave(paste0(my.name, "_module", vec.of.modulecolors[[idx]], "_moduleIC.pdf"), plot = bp, width = 14, height = 10)
+        bp <- ggplot(modTOP, aes(x=gene, y=kWithin))+ geom_bar(stat="identity", fill=as.character(vec.of.modulecolors[[idx]]), width = 0.4) + theme_minimal() + geom_text(aes(label=gene), color = "grey30", size = 2.5, angle = 90, hjust = -.05) + theme(axis.text.x=element_blank())
+        ggsave(paste0(my.name,"_", vec.of.modulecolors[[idx]], "_moduleIC.pdf"), plot = bp, width = 14, height = 10)
         
         my.modules[[idx]] <- modTOP
         
@@ -882,7 +799,7 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
     # Adjacency matrix and Topology Matrix
     adj <-adjacency(my.data, power = softPower)
     
-    if(ncol(my.data) > 6000) {
+    if(ncol(my.data) > 8000) {
         
         cat("Dataset too large for classic WGCNA, running blockwiseModules intead.\n")
         
@@ -891,7 +808,7 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
         weights = NULL,
         checkMissingData = TRUE,
         blocks = NULL,
-        maxBlockSize = 5000,
+        maxBlockSize = 8000,
         blockSizePenaltyPower = 5,
         nPreclusteringCenters = as.integer(min(ncol(my.data)/20, 100*ncol(my.data)/5000)),
         randomSeed = 12345,
@@ -899,7 +816,7 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
         maxPOutliers = 1,
         quickCor = 0,
         pearsonFallback = "individual",
-        power = 7,
+        power = softPower,
         networkType = "unsigned",
         replaceMissingAdjacencies = FALSE,
         suppressTOMForZeroAdjacencies = FALSE,
@@ -947,7 +864,18 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
         # Change colors to viridis
         my.cols <- data.frame(dynamicColors)
         colnames(my.cols) <- c("oldcols")
-        colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), begin = 0.2, end = 0.8, option="cividis"))
+        
+        n.colors <- length(levels(as.factor(dynamicColors)))
+
+        WGCNA.cols <- c("#5C6D70", "#E88873", "#B5BD89", "#E8AE68", "#104F55", "#4062BB", "#72195A", "#8ACB88", "#A997DF", "#4B296B", "#BC69AA", "#1C3144", "#C3D898", "#C2C1A5", "#B23A48", "#3A7D44", "#B6F9C9", "#FF8360", "#296EB4", "#E8C1C5", "#2E282A", "#AAA95A", "#34D1BF", "#3454D1", "#F2F4CB", "#898980", "#ADF5FF", "#372549", "#7DD181", "#F56476")
+        
+        if(n.colors > 30) {
+            l <- n.colors-30
+            WGCNA.cols <- c(WGCNA.cols, viridis(l, option="inferno"))
+        }
+        
+        #colortransform <- data.frame(levels(as.factor(dynamicColors)), viridis(length(levels(as.factor(dynamicColors))), option="inferno"))
+        colortransform <- data.frame(levels(as.factor(dynamicColors)), WGCNA.cols[1:n.colors])
         colnames(colortransform) <- c("oldcols", "colortransform")
         dynamicColors <- as.character(join(my.cols, colortransform)$colortransform)
         
@@ -966,7 +894,7 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
         mergedMEs <- merge$newMEs
         
         # Plot merged modules
-        pdf(paste0(my.name,"_WGCNA_ModuleTree.pdf"), height = 10, width = 12)
+        pdf(paste0(my.name,"_WGCNA_moduleTree.pdf"), height = 10, width = 12)
         plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),c("Dynamic Tree Cut", "Merged dynamic"),dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
         dev.off()
         
@@ -985,8 +913,6 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
     cat("Done with IC.\n")
     
     WGCNAres <- ModuleIC(mod.cols, moduleColors, IC, my.data, my.thresholds[3], softPower, my.name)
-    WGCNAres <- do.call("rbind", WGCNAres)
-    rownames(WGCNAres) <- gsub("^(.*?)[.]", "", rownames(WGCNAres))
     return(WGCNAres)
 }
 
@@ -1101,7 +1027,7 @@ GetDeaPPInt <- function(my.DB, my.Genedat) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Function which extracts the miRNA-gene interactions where miRNAs (and potentially genes, if this data is available,) are differentially expressed.
 # Take arguments:
-# arg.miRset = string specifying what miRNA database to use, options are: miRTarBase (validated), targetscan (predicted) or tarscanbase (validated and predicted).
+# arg.miRset = string specifying what miRNA database to use, options are: mirtarbase (validated), targetscan (predicted) or tarscanbase (validated and predicted).
 # my.miRdat = a dataframe with results of differential expression analysis (miRNAs).
 # my.Geneset = a dataframe with results of differential expression analysis (genes)- by default this argument is set to NULL.
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1118,31 +1044,48 @@ GetGeneMiRNAInt <- function(arg.miRset, my.miRdat, my.Genedat = NULL) {
         df$node1 <- df$name
         
         
-        if (arg.miRset == "miRTarBase") {
-            mirs <- unique(get_multimir(mirna = df$node1, table = "mirtarbase")@data[,3:4])
-            mirs$score <- rep(1, nrow(mirs))
-            colnames(mirs) <- c("node1", "node2", "score")
-            
+        if (arg.miRset == "mirtarbase") {
+            mirs <- get_multimir(mirna = df$node1, table = "mirtarbase")@data
+            if(length(mirs) > 0) {
+                mirs <- unique(mirs[,3:4])
+                mirs$score <- rep(1, nrow(mirs))
+                colnames(mirs) <- c("node1", "node2", "score")
+            } else {
+                stop("Either there are no differentially expressed miRNAs or non of miRNAs the have any predicted gene targets. Try re-running the pipeline with a lower cutoff for significance (-f) or change argument -i to either targetscan or tarscanbase")
+            }
         } else if (arg.miRset == "targetscan") {
-            mirs <- get_multimir(mirna = df$node1, table = "targetscan")@data[,c(3,4,7)]
-            mirs$score <- abs(as.numeric(mirs$score))
-            colnames(mirs) <- c("node1", "node2", "score")
-            
+            mirs <- get_multimir(mirna = df$node1, table = "targetscan")@data
+            if(length(mirs) > 0) {
+                mirs <- mirs[,c(3,4,7)]
+                mirs$score <- abs(as.numeric(mirs$score))
+                colnames(mirs) <- c("node1", "node2", "score")
+            } else {
+                stop("Either there are no differentially expressed miRNAs or non of miRNAs the have any predicted gene targets. Try re-running the pipeline with a lower cutoff for significance (-f) or change argument -i to either mirtarbase or tarscanbase")
+            }
         } else if (arg.miRset == "tarscanbase") {
-            mirsV <- get_multimir(mirna = df$node1, table = "mirtarbase")@data[, 3:4]
-            mirsV$score <- rep(1, nrow(mirsV))
-            mirsP <- get_multimir(mirna = df$node1, table = "targetscan")@data[,c(3,4,7)]
-            mirs <- unique(rbind(mirsV, mirsP))
-            mirs$score <- abs(as.numeric(mirs$score))
-            
-            mirs$IDs <- paste0(mirs[,1], "|", mirs[,2])
-            mirs <- data.table(mirs[,-c(1,2)])
-            mirs <-  data.frame(mirs[, lapply(.SD, mean), by=IDs])
-            mirs <- data.frame(do.call(rbind, strsplit(mirs$IDs, "[|]")), as.numeric(mirs[,2]))
-            colnames(mirs) <- c("node1", "node2", "score")
-            
+            mirsV <- get_multimir(mirna = df$node1, table = "mirtarbase")@data
+            if(length(mirsV) > 0) {
+                mirsV <- mirsV[, 3:4]
+                mirsV$score <- rep(1, nrow(mirsV))
+            }
+            mirsP <- get_multimir(mirna = df$node1, table = "targetscan")@data
+            if(length(mirsP) > 0) {
+                mirsP <- mirsP[,c(3,4,7)]
+            }
+            if (length(mirsV) > 0 | length(mirsP) > 0) {
+                mirs <- unique(rbind(mirsV, mirsP))
+                mirs$score <- abs(as.numeric(mirs$score))
+                
+                mirs$IDs <- paste0(mirs[,1], "|", mirs[,2])
+                mirs <- data.table(mirs[,-c(1,2)])
+                mirs <-  data.frame(mirs[, lapply(.SD, mean), by=IDs])
+                mirs <- data.frame(do.call(rbind, strsplit(mirs$IDs, "[|]")), as.numeric(mirs[,2]))
+                colnames(mirs) <- c("node1", "node2", "score")
+            } else {
+                stop("Either there are no differentially expressed miRNAs or non of miRNAs the have any predicted gene targets. No network can be generated!")
+            }
         } else {
-            stop("")
+            stop("If the argument -i is specified, the second part of this argument it must be set to either mirtarbase, targetscan or tarscanbase!")
         }
         
         mirs <- mirs[!duplicated(apply(mirs,1,function(x) paste(sort(x),collapse=''))),]
@@ -1339,7 +1282,7 @@ PlotInt <- function(my.trimmed.list) {
         
         arcplot(final.nodes, ordering=my.order, labels=p.info$name, cex.labels=0.8,
         show.nodes=TRUE, col.nodes=p.info$calfb, bg.nodes=p.info$calfb,
-        cex.nodes = log2(abs(p.info$logFC)), pch.nodes=21,
+        cex.nodes = 2^(log2(abs(p.info$logFC))/10), pch.nodes=21,
         lwd.nodes = 2, line=-0.5,
         col.arcs = hsv(0, 0, 0.2, 0.25), lwd.arcs = log2(p.nodes$score/100)*1.5)
         dev.off()
@@ -1349,45 +1292,5 @@ PlotInt <- function(my.trimmed.list) {
 
 
 
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# FUNCTION FOR MAKING MULTIPLE ggplotS IN ONE FIGURE - FUNCTION WAS OBAINED FROM
-# http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
-  
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-  
-  numPlots = length(plots)
-  
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                     ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-  
-  if (numPlots==1) {
-    print(plots[[1]])
-    
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-    
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-      
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
 
 
