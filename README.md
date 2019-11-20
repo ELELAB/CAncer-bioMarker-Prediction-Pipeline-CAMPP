@@ -14,18 +14,16 @@ corresponding author: elenap@cancer.dk
 
 contacts for software/scripts: thilde@cancer.dk, elenap@cancer.dk
 
-
-The pipeline consists of three R scrips which are currently run from the linux command-line using flags. The scrips are named:
+The pipeline consists of two R scripts, which are currently run from the terminal command-line using flags. The scripts are named:
                                   
-                                  CAMPPInstall.R
                                   CAMPPFunctions.R
                                   CAMPP.R
-                                  
-The CAMPPInstall.R script is run the first time the pipeline is used to ensure that all needed R-packages are installed. 
-
+  
 The CAMPPFunctions.R script contains custum functions used for analysis and is sourced within the CAMPP.R. The CAMPPFunctions.R script should be located in the folder from which the pipeline is run.
 
-The CAMPP.R script acts as the actual pipeline and is run with flags from the linux command-line. 
+The CAMPP.R script acts as the actual pipeline and is run with flags from the command-line. 
 The flag -h is implemented for user help.
+
+The pipeline automatically checks for R-package dependencies and installs them if needed. However, as R-package updates may potentially break the code, we also provide the user with a "renv" library freeze (renv.lock). The user can specify running CAMPP with renv by setting the flag -e to "stable". See CAMPP Manual for specifics on this. 
 
 Data example used in the CAMPPManual.pdf is located at https://github.com/ELELAB/N-glycan-TIF with the original publication, in the folder https://github.com/ELELAB/N-glycan-TIF/tree/master/Data/DataExamples.
