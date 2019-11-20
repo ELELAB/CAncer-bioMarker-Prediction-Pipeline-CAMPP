@@ -150,19 +150,27 @@ if (is.rlib == FALSE) {
         
     } else {
         rm(file)
-        cat("\nCAMPP dependencies are successfully loaded... Ready to run...\n")
+        cat("\nPACKAGES HAVE BEEN INSTALLED - READY TO RUN CAMPP!\n")
+        cat("\n---------------------------------------------------------------------------------------------\n")
     }
     
 } else if (is.rlib == TRUE) {
-    install.packages("renv", repos="https://cloud.r-project.org")
+    
+    if (!require("renv")) {
+        install.packages("renv", repos="https://cloud.r-project.org")
+    }
     library("renv")
     cat("\nStable 'Renv' library is being used for analysis!\n")
+    renv::consent(provided = TRUE)
     renv::restore()
-    renv::activate()
     file <- try(lapply(list.of.packages, library, character.only=T))
+    cat("\nPACKAGES HAVE BEEN INSTALLED - READY TO RUN CAMPP!\n")
+    cat("\n---------------------------------------------------------------------------------------------\n")
 } else {
     cat("\nFlag -e must be either null (omitted) or TRUE or FALSE!.\n")
 }
+
+
 
 
 
