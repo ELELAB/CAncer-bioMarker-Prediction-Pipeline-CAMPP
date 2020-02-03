@@ -932,24 +932,39 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
 
 DownloadPPInt <- function(my.geneIDs, my.version = "11.0") {
     approvedGeneIDs <- c("ensembl_peptide_id", "hgnc_symbol","ensembl_gene_id","ensembl_transcript_id", "uniprotswissprot")
-    file <- try(stringDB <- fread(paste0("9606.protein.links.v", my.version, ".txt.gz")), silent=TRUE)
+    setwd("..")
+    file <- try(load("stringDB.Rdata"))
+    setwd("Results/")
+    
     if (class(file) == "try-error") {
+        print("\nDownloading and preparing string database for protein-protein interactions - this may take a couple of minutes!\n")
         download.file(paste0("https://stringdb-static.org/download/protein.links.v",my.version,"/9606.protein.links.v",my.version,".txt.gz"), paste0("9606.protein.links.v", my.version, ".txt.gz"))
-        stringDB <- fread(paste0("9606.protein.links.v", my.version, ".txt.gz"))
+        stringDB <- data.table::fread(paste0("9606.protein.links.v", my.version, ".txt.gz"))
+        
+        stringDB$protein1 <- gsub("9606.", "", stringDB$protein1)
+        stringDB$protein2 <- gsub("9606.", "", stringDB$protein2)
+      
+        if (my.geneIDs %in% approvedGeneIDs[-1]) {
+            uqprot <- unique(c(stringDB$protein1, stringDB$protein2))
+            uqprot <- split(uqprot, ceiling(seq_along(uqprot)/10000))
+            print("Calling IDs from BiomaRt")
+            ensemblMT <- useMart(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+            #map <- unique(getBM(attributes = c("ensembl_peptide_id", my.geneIDs), filters = "ensembl_peptide_id", values = uqprot, mart = ensemblMT))
+            map <- lapply(uqprot, function(x) getBM(attributes = c("ensembl_peptide_id", my.geneIDs), filters = "ensembl_peptide_id", values = x, mart = ensemblMT))
+            map <- do.call("rbind", map)
+            colnames(map) <- c("protein1", "ID1")
+            stringDB <- merge(stringDB, map, by = "protein1", all.x = TRUE, all.y = FALSE)
+            colnames(map) <- c("protein2", "ID2")
+            stringDB <- merge(stringDB, map, by = "protein2", all.x = TRUE, all.y = FALSE)
+            stringDB <- stringDB[,-c(1,2)]
+        }
+        
+        stringDB <- stringDB[stringDB$combined_score > as.numeric(quantile(stringDB$combined_score)[2]),]
+        setwd("..")
+        save(stringDB, file = "stringDB.Rdata")
+        setwd("Results/")
     }
-    stringDB$protein1 <- gsub("9606.", "", stringDB$protein1)
-    stringDB$protein2 <- gsub("9606.", "", stringDB$protein2)
-    if (my.geneIDs %in% approvedGeneIDs[-1]) {
-        uqprot <- unique(c(stringDB$protein1, stringDB$protein2))
-        ensembl <- useDataset("hsapiens_gene_ensembl",mart = useMart("ensembl"))
-        map <- unique(getBM(attributes = c("ensembl_peptide_id", my.geneIDs), filters = "ensembl_peptide_id", values = uqprot, mart = ensembl))
-        colnames(map) <- c("protein1", "ID1")
-        stringDB <- merge(stringDB, map, by = "protein1", all.x = TRUE, all.y = FALSE)
-        colnames(map) <- c("protein2", "ID2")
-        stringDB <- merge(stringDB, map, by = "protein2", all.x = TRUE, all.y = FALSE)
-        stringDB <- stringDB[,-c(1,2)]
-    }
-    stringDB <- stringDB[stringDB$combined_score > as.numeric(quantile(stringDB$combined_score)[2]),]
+    
     return(stringDB)
 }
 
@@ -1276,13 +1291,13 @@ PlotInt <- function(my.trimmed.list) {
         meta <- data.frame(p.info$group, degrees, p.info$name, ind=1:nrow(p.info))
         my.order <- as.integer(meta[order(meta$degrees, decreasing = TRUE),]$ind)
         
-        tiff(paste0(trimmed.names[[idx]],"_TopInteracions.tiff"), width = 14, height = 10, units = 'in', res = 300)
+        tiff(paste0(trimmed.names[[idx]],"_TopInteracions.tiff"), width = 14, height = 10, units = 'in', res = 600)
 
-        #cex.nodes = (log(degrees)/2)+0.5
+        #cex.nodes = 2^(log2(abs(p.info$logFC))/10)
         
-        arcplot(final.nodes, ordering=my.order, labels=p.info$name, cex.labels=0.8,
+        arcplot(final.nodes, ordering=my.order, labels=p.info$name, cex.labels=0.6,
         show.nodes=TRUE, col.nodes=p.info$calfb, bg.nodes=p.info$calfb,
-        cex.nodes = 2^(log2(abs(p.info$logFC))/10), pch.nodes=21,
+        cex.nodes = (log(degrees)/2)+0.2, pch.nodes=21,
         lwd.nodes = 2, line=-0.5,
         col.arcs = hsv(0, 0, 0.2, 0.25), lwd.arcs = log2(p.nodes$score/100)*1.5)
         dev.off()

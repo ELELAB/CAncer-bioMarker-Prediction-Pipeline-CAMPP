@@ -1803,7 +1803,6 @@ gc()
 
 if (!is.null(arg.PPI)) {
     
-    cat("\nDownloading and preparing string database for protein-protein interactions - this may take a couple of min!\n")
     DB <- DownloadPPInt(arg.PPI[[1]])
     
     dir.create("InteractionResults")
