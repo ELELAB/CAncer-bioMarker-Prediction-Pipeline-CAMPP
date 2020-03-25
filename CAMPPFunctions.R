@@ -494,6 +494,10 @@ LASSOFeature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FA
         
         my.samp <- unlist(lapply(ll, function(x) sample(x, ceiling((length(x)/4)))))
         
+        
+        my.data.val <- my.data[,my.samp]
+        my.group.val <- as.integer(my.group[my.samp])
+        
         my.data <- my.data[,-my.samp]
         my.group <- as.integer(my.group[-my.samp])
     }
@@ -505,16 +509,23 @@ LASSOFeature <- function(my.seed, my.data, my.group, my.LAorEN, my.validation=FA
         my.fit <- cv.glmnet(x = t(my.data), y = my.group, family="multinomial", type.multinomial = "grouped", nfolds = 10, alpha = my.LAorEN, parallel=TRUE)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
         my.ma <- as(my.coef[[1]], "matrix")
-        meanerror <- round(as.numeric(mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group))*100, digits = 2)
-        cat(paste0("\nOne LASSO/EN run completed. Mean cross validation error was = ", meanerror, "%\n"))
     } else {
         set.seed(my.seed)
         my.fit <- cv.glmnet(x = t(my.data), y = my.group, family = "binomial", type.measure = "class", nfolds = 10, alpha = my.LAorEN)
         my.coef <- coef(my.fit, s=my.fit$lambda.1se)
         my.ma <- as(my.coef, "matrix")
-        meanerror <- round(as.numeric(mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group))*100, digits = 2)
-        cat(paste0("\nOne LASSO/EN run out completed. Mean cross validation error was = ", meanerror, "%\n"))
     }
+    
+    
+    if (my.validation == TRUE) {
+        meanerror <- round(as.numeric(mean(predict(my.fit, t(my.data.val), s=my.fit$lambda.1se, type="class") != my.group.val))*100, digits = 2)
+        cat(paste0("\nOne LASSO/EN run out completed. Mean class error was = ", meanerror, "%\n"))
+        
+    } else {
+        meanerror <- round(as.numeric(mean(predict(my.fit, t(my.data), s=my.fit$lambda.1se, type="class") != my.group))*100, digits = 2)
+        cat(paste0("\nOne LASSO/EN run out completed. Mean cross-validation error was = ", meanerror, "%\n"))
+    }
+    
     
     my.ma <- names(my.ma[my.ma[,1] != 0, ])
     
