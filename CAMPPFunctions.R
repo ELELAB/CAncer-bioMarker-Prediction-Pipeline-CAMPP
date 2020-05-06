@@ -964,9 +964,9 @@ DownloadPPInt <- function(my.geneIDs, my.version = "11.0") {
             map <- lapply(uqprot, function(x) getBM(attributes = c("ensembl_peptide_id", my.geneIDs), filters = "ensembl_peptide_id", values = x, mart = ensemblMT))
             map <- do.call("rbind", map)
             colnames(map) <- c("protein1", "ID1")
-            stringDB <- merge(stringDB, map, by = "protein1", all.x = TRUE, all.y = FALSE)
+            stringDB <- merge(stringDB, map, by = "protein1")
             colnames(map) <- c("protein2", "ID2")
-            stringDB <- merge(stringDB, map, by = "protein2", all.x = TRUE, all.y = FALSE)
+            stringDB <- merge(stringDB, map, by = "protein2")
             stringDB <- stringDB[,-c(1,2)]
         }
         
