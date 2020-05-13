@@ -15,7 +15,9 @@
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 install.packages("getopt", repos="https://cloud.r-project.org")
+install.packages("BiocManager", repos="https://cloud.r-project.org")
 library("getopt")
+library("BiocManager")
 
 
 
