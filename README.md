@@ -12,7 +12,7 @@ Thilde Terkelsen, Anders Krogh and Elena Papaleo
 
 corresponding author: elenap@cancer.dk
 
-contacts for software/scripts: thilde@cancer.dk, elenap@cancer.dk
+contacts for software/scripts: thilde.terkelsen@sund.ku.dk, elenap@cancer.dk
 
 The pipeline consists of two R scripts, which are currently run from the terminal command-line using flags. The scripts are named:
                                   
