@@ -95,7 +95,7 @@ cat("\nCAMPP Running Messages:\n")
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "WGCNA", "fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "devtools", "arcdiagram", "doMC", "knor", "nnet")
+list.of.packages <- c("limma", "edgeR", "glmnet", "sva", "openxlsx", "ggplot2", "gridExtra", "heatmap.plus", "plyr", "data.table", "viridis", "squash", "survcomp", "survminer", "scales", "rms", "GO.db", "WGCNA","fitdistrplus", "impute", "pcaMethods", "pROC", "VennDiagram", "mclust", "multiMiR", "biomaRt", "arcdiagram", "doMC", "knor", "nnet")
 
 # "stackoverflow"
 
