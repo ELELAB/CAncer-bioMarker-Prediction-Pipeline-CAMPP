@@ -13,14 +13,21 @@
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                                             ### USER ARGUMENTS ###
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-install.packages("getopt", repos="https://cloud.r-project.org")
-install.packages("BiocManager", repos="https://cloud.r-project.org")
-library("getopt")
-library("BiocManager")
+int.packages <- c("getopt","BiocManager","devtools")
+check.packages <- int.packages[!(int.packages %in% installed.packages()[,"Package"])]
+if(length(check.packages)) install.packages(check.packages, repos="https://cloud.r-project.org")
 
 
+file <- try(lapply(int.packages, library, character.only=T))
 
+if (class(file) == "try-error") {
+    
+    stop("\nUps! The R-packages; getopt, BiocManager and devtools MUST be installed. If CAMPP throws this error, it means it cannot install them for some reason. Try to install them one at a time with install.packages(x)\n.")
+}
+    
+    
+    
+    
 # flag specification # ref: https://tgmstat.wordpress.com/2014/05/21/r-scripts/
 spec = matrix(c(
   "help", "h", 0, "logical",

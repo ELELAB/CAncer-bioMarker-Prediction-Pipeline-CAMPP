@@ -29,7 +29,7 @@ install.packages.auto <- function(x, y) {
     if(isTRUE(x %in% .packages(all.available=TRUE))) {
         eval(parse(text = paste0("require('",x,"')")))
     } else {
-        eval(parse(text = paste0("BiocManager::install('",x,"')")))
+        eval(parse(text = paste0("BiocManager::install('",x,"', dependencies = TRUE)")))
     }
 }
 
