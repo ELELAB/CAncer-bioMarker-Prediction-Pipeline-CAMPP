@@ -4,11 +4,10 @@ Computational Biology Laboratory, Danish Cancer Society Research Center, Strandb
 This GitHub repository was created for the The CAncer bioMarker Prediction Pipeline (CAMPP). 
 A collection of R scripts made for computational prediction of serum cancer biomarkers. 
 
-The publication associated with CAMPP, cited if the pipeline is used, is currently on biorxiv as a pre-print:
+The publication associated with CAMPP, cited if the pipeline is used, is: 
 
-CAncer bioMarker Prediction Pipeline (CAMPP) - A standardised and user-friendly framework for the analysis of quantitative biological data. biorxiv, doi: https://doi.org/10.1101/608422
-
-Thilde Terkelsen, Anders Krogh and Elena Papaleo
+Terkelsen, Thilde, Anders Krogh, and Elena Papaleo. "CAncer bioMarker Prediction Pipeline (CAMPP)—A standardized framework for the analysis of quantitative biological data." PLoS computational biology 16.3 (2020): e1007665.
+https://doi.org/10.1371/journal.pcbi.1007665
 
 corresponding author: elenap@cancer.dk
 
@@ -20,6 +19,8 @@ The pipeline consists of two R scripts, which are currently run from the termina
                                   CAMPP.R
   
 The CAMPPFunctions.R script contains custum functions used for analysis and is sourced within the CAMPP.R. The CAMPPFunctions.R script should be located in the folder from which the pipeline is run.
+
+N.B. You must have R version 4.0.0 or higher installed to run the pipeline. See specifics in the User Manual.
 
 The CAMPP.R script acts as the actual pipeline and is run with flags from the command-line. 
 The flag -h is implemented for user help.
