@@ -897,7 +897,7 @@ WGCNAAnalysis <- function(my.data, my.thresholds, my.name) {
         
         # Cluster module eigengenes
         if (ncol(MEDiss) <= 1) {
-            print("N.B. You only have one module in your tree, please consider changing parameter -x. Specify a smaller minimum module size (default is 10) or decrease % dissimilarity for mergining modules (default is 25%")
+            print("N.B. You only have one module in your tree, please consider changing parameter -x. Specify a smaller minimum module size (default is 10) or decrease % dissimilarity for mergining modules (default is 25%).")
         } else {
             METree <- hclust(dist(MEDiss), method = "ward.D2")
         }
