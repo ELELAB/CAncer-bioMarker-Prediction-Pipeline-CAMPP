@@ -823,14 +823,14 @@ MDScolors <- gsub(pattern = "FF", replacement = "", x = arg.colors)
 
 
 if (arg.plotmds == TRUE && arg.databatch == TRUE){
-    mdsplot <- MDSPlot(data.batch, arg.group, "", MDScolors)
+    mdsplot <- MDSPlot(data.batch, arg.group, arg.ids, MDScolors)
     ggsave(paste0(arg.filename, "_MDSplot_batchcorr.pdf"), plot = mdsplot, dpi = 300, width = 8, height = 8)
 
 } else if (arg.plotmds == TRUE && arg.databatch == FALSE){
     if (arg.variant[1] == "seq") {
-        mdsplot <- MDSPlot(data.frame(arg.data$E), arg.group, "", MDScolors)
+        mdsplot <- MDSPlot(data.frame(arg.data$E), arg.group, arg.ids, MDScolors)
     } else {
-        mdsplot <- MDSPlot(arg.data, arg.group, "", MDScolors)
+        mdsplot <- MDSPlot(arg.data, arg.group, arg.ids, MDScolors)
     }
     ggsave(paste0(arg.filename, "_MDSplot.pdf"), plot = mdsplot, dpi = 300, width = 8, height = 8)
     
